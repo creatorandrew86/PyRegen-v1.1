@@ -297,12 +297,12 @@ def print_main_output(state: dict):
     temp_rise        = state["coolant_parameters"]["station_coolant_T"][-1] - state["coolant_parameters"]["station_coolant_T"][0]
 
     with dpg.window(label="Output", tag=window_tag, width=350, height=180, modal=False, no_resize=True, pos=(pos_x, pos_y)):
-        dpg.add_text("--- Results ---")
+        dpg.add_text("Results Summary")
         dpg.add_separator()
-        dpg.add_text(f"Max heat flux:           {max_heat_flux:.3f} MW/m²")
-        dpg.add_text(f"Max hot wall temperature: {max_hot_wall_T:.2f} K")
-        dpg.add_text(f"Coolant pressure drop:    {pressure_drop:.3f} bar")
-        dpg.add_text(f"Coolant temperature rise: {temp_rise:.2f} K")
+        dpg.add_text(f"Maximum Heat Flux: {max_heat_flux:.2f} MW/m²")
+        dpg.add_text(f"Maximum Hot Wall Temperature: {max_hot_wall_T:.2f} K")
+        dpg.add_text(f"Coolant Pressure Drop: {pressure_drop:.2f} bar")
+        dpg.add_text(f"Coolant Temperature rRse: {temp_rise:.2f} K")
 
 
 def print_nozzle_graph(state: dict):
