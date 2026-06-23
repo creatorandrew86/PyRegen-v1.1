@@ -42,7 +42,7 @@ def initialize_state(state: dict, station_index: int) -> list[str]:
 
     # ── CEA gas properties ───────────────────────────────────────────────
     try:
-        if zone == 1:
+        if zone in (0, 1) :
             full_output = c_default_units.get_full_cea_output(Pc=Pc_psia, MR=MR, eps=eps, subar=eps, output='siunits')
             lines = full_output.split("\n")
 

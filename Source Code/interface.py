@@ -394,7 +394,7 @@ def build_interface(on_generate_nozzle, on_solve, state):
                             with dpg.table_cell():
                                 dpg.add_spacer(height=8)
                                 dpg.add_text("Expansion Ratio")
-                                dpg.add_input_float(tag="input_eps", width=-1, format="%.2f", min_value=1.0, min_clamped=True, default_value=15.0)
+                                dpg.add_input_float(tag="input_eps", width=-1, format="%.2f", min_value=1.0, min_clamped=True)
 
 
                         # Fuel  |  Contraction Ratio
