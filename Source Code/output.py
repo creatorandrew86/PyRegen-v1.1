@@ -302,7 +302,7 @@ def print_main_output(state: dict):
         dpg.add_text(f"Maximum Heat Flux: {max_heat_flux:.2f} MW/m²")
         dpg.add_text(f"Maximum Hot Wall Temperature: {max_hot_wall_T:.2f} K")
         dpg.add_text(f"Coolant Pressure Drop: {pressure_drop:.2f} bar")
-        dpg.add_text(f"Coolant Temperature rRse: {temp_rise:.2f} K")
+        dpg.add_text(f"Coolant Temperature Rise: {temp_rise:.2f} K")
 
 
 def print_nozzle_graph(state: dict):
