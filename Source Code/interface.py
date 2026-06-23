@@ -390,7 +390,7 @@ def build_interface(on_generate_nozzle, on_solve, state):
                             with dpg.table_cell():
                                 dpg.add_spacer(height=8)
                                 dpg.add_text("Oxidizer")
-                                dpg.add_combo(tag="input_oxidizer", items=oxidizer_items, default_value="LOX", width=-1)
+                                dpg.add_combo(tag="input_oxidizer", items=oxidizer_items, width=-1)
                             with dpg.table_cell():
                                 dpg.add_spacer(height=8)
                                 dpg.add_text("Expansion Ratio")
@@ -402,11 +402,11 @@ def build_interface(on_generate_nozzle, on_solve, state):
                             with dpg.table_cell():
                                 dpg.add_spacer(height=6)
                                 dpg.add_text("Fuel")
-                                dpg.add_combo(tag="input_fuel", items=fuel_items, default_value="CH4", width=-1)
+                                dpg.add_combo(tag="input_fuel", items=fuel_items, width=-1)
                             with dpg.table_cell():
                                 dpg.add_spacer(height=6)
                                 dpg.add_text("Contraction Ratio")
-                                dpg.add_input_float(tag="input_CR", width=-1, format="%.2f", min_value=1.0, min_clamped=True, default_value=3.0)
+                                dpg.add_input_float(tag="input_CR", width=-1, format="%.2f", min_value=1.0, min_clamped=True)
                             
 
                         # Mixture Ratio  |  Characteristic Length 
@@ -414,12 +414,12 @@ def build_interface(on_generate_nozzle, on_solve, state):
                             with dpg.table_cell():
                                 dpg.add_spacer(height=6)
                                 dpg.add_text("Mixture Ratio (O/F)")
-                                dpg.add_input_float(tag="input_MR", width=-1, format="%.2f", min_value=0.0, min_clamped=True, default_value=3.60)
+                                dpg.add_input_float(tag="input_MR", width=-1, format="%.2f", min_value=0.0, min_clamped=True)
                             with dpg.table_cell():
                                 dpg.add_spacer(height=6)
                                 dpg.add_text("Characteristic Length")
                                 with dpg.group(horizontal=True):
-                                    dpg.add_input_float(tag="input_L_star",  width=-65, format="%.2f", min_value=0.0, min_clamped=True, default_value=80.0)
+                                    dpg.add_input_float(tag="input_L_star",  width=-65, format="%.2f", min_value=0.0, min_clamped=True)
                                     dpg.add_combo(tag="unit_L_star", items=["cm", "m", "mm", "in", "ft"], default_value="cm", width=60)
                                 
 
@@ -429,12 +429,12 @@ def build_interface(on_generate_nozzle, on_solve, state):
                                 dpg.add_spacer(height=6)
                                 dpg.add_text("Chamber Pressure")
                                 with dpg.group(horizontal=True):
-                                    dpg.add_input_float(tag="input_Pc",  width=-65, format="%.2f", min_value=0.0, min_clamped=True, default_value=150.0)
+                                    dpg.add_input_float(tag="input_Pc",  width=-65, format="%.2f", min_value=0.0, min_clamped=True)
                                     dpg.add_combo(tag="unit_Pc", items=["Pa", "kPa", "bar", "MPa", "psi", "atm"], default_value="bar", width=60)
                             with dpg.table_cell():  
                                 dpg.add_spacer(height=6)
                                 dpg.add_text("Nozzle Resolution")
-                                dpg.add_input_int(tag="input_nozzle_resolution", width=-1, min_value=0, default_value=500, min_clamped=True, step=1, step_fast=10)
+                                dpg.add_input_int(tag="input_nozzle_resolution", width=-1, min_value=0, min_clamped=True, step=1, step_fast=10)
 
 
                         # Throat Sizing - Mass Flow Rate  |  Nozzle Type - Conical Nozzle
@@ -512,12 +512,12 @@ def build_interface(on_generate_nozzle, on_solve, state):
                             with dpg.table_cell():
                                 dpg.add_spacer(height=6)
                                 dpg.add_text("Coolant")
-                                dpg.add_combo(tag="input_coolant", width=-1, items=coolant_items, default_value=coolant_items[0])
+                                dpg.add_combo(tag="input_coolant", width=-1, items=coolant_items)
                             with dpg.table_cell():
                                 dpg.add_spacer(height=6)
                                 dpg.add_text("Coolant Mass Flow Rate")
                                 with dpg.group(horizontal=True):
-                                    dpg.add_input_float(tag="input_coolant_mass_flow", width=-65, format="%.1f", min_value=0.0, min_clamped=True, default_value=10.0)
+                                    dpg.add_input_float(tag="input_coolant_mass_flow", width=-65, format="%.1f", min_value=0.0, min_clamped=True)
                                     dpg.add_combo(tag="unit_coolant_mass_flow", items=["kg/s", "g/s", "kg/min","lb/s"], default_value="kg/s", width=60)
 
 
@@ -527,13 +527,13 @@ def build_interface(on_generate_nozzle, on_solve, state):
                                 dpg.add_spacer(height=6)
                                 dpg.add_text("Coolant Inlet Temperature")
                                 with dpg.group(horizontal=True):
-                                    dpg.add_input_float(tag="input_coolant_inlet_temperature", width=-65, format="%.1f", default_value=100.0)
+                                    dpg.add_input_float(tag="input_coolant_inlet_temperature", width=-65, format="%.1f")
                                     dpg.add_combo(tag="unit_coolant_inlet_temperature", items=["K", "C", "F"], default_value="K", width=60)
                             with dpg.table_cell():
                                 dpg.add_spacer(height=6)
                                 dpg.add_text("Coolant Inlet Pressure")
                                 with dpg.group(horizontal=True):
-                                    dpg.add_input_float(tag="input_coolant_inlet_pressure", width=-65, format="%.1f", min_value=0.0, min_clamped=True, default_value=180.0)
+                                    dpg.add_input_float(tag="input_coolant_inlet_pressure", width=-65, format="%.1f", min_value=0.0, min_clamped=True)
                                     dpg.add_combo(tag="unit_coolant_inlet_pressure", items=["Pa", "kPa", "bar", "MPa", "psi", "atm"], default_value="bar", width=60)
 
 
@@ -542,15 +542,15 @@ def build_interface(on_generate_nozzle, on_solve, state):
                                 dpg.add_spacer(height=6)
                                 dpg.add_text("Wall Material")
                                 with dpg.group(horizontal=True):
-                                    dpg.add_combo(tag="input_wall_material", items=wall_material_items, default_value=wall_material_items[0])
+                                    dpg.add_combo(tag="input_wall_material", items=wall_material_items)
                                     dpg.add_spacer(width=2)
                                     dpg.add_text("Thickness:")
-                                    dpg.add_input_float(tag="input_wall_thickness", format="%.1f", min_value=0.0, default_value=1.2, min_clamped=True)
+                                    dpg.add_input_float(tag="input_wall_thickness", format="%.1f", min_value=0.0, min_clamped=True)
                                     dpg.add_combo(tag="unit_wall_thickness", items=["mm", "cm", "in"], default_value="mm")
                             with dpg.table_cell():
                                 dpg.add_spacer(height=6)
                                 dpg.add_text("Number of Channels")
-                                dpg.add_input_int(tag="input_N_cooling_channels", width=-1, min_value=0, default_value=250, min_clamped=True, step=1)
+                                dpg.add_input_int(tag="input_N_cooling_channels", width=-1, min_value=0, min_clamped=True, step=1)
 
                     # Separator
                     dpg.add_spacer(height=5)
@@ -576,11 +576,11 @@ def build_interface(on_generate_nozzle, on_solve, state):
                             with dpg.table_cell():
                                 with dpg.group(horizontal=True):
                                     dpg.add_text("Interpolation Type:")
-                                    dpg.add_combo(tag="interpolation_type", items=interpolation_type_items, default_value=interpolation_type_items[0])
+                                    dpg.add_combo(tag="interpolation_type", items=interpolation_type_items)
                             with dpg.table_cell():
                                 with dpg.group(horizontal=True):
                                     dpg.add_text("Jacket Resolution: ")
-                                    dpg.add_input_int(tag="input_jacket_resolution", width=-1, min_value=0, default_value=150, min_clamped=True, step=1, step_fast=10)
+                                    dpg.add_input_int(tag="input_jacket_resolution", width=-1, min_value=0, min_clamped=True, step=1, step_fast=10)
                             with dpg.table_cell():
                                 dpg.add_button(label="Solve", callback=on_solve, width=-1)
 
