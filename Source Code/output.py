@@ -247,7 +247,7 @@ def print_graph_output(state: dict, values: dict):
         interface.show_errors(["X and Y axis must be different"])
         return
 
-    if y_axis_value == "Axial position (x) (m)":
+    if y_axis_value == "Axial position (x) (cm)":
         interface.show_errors(["'Axial position (x)' can only be used as the X axis"])
         return
 
