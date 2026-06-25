@@ -1,12 +1,13 @@
-import inputprocessor
-import interface
-import geometry
-import solver
-import output
-import cea
+import interface.interface as interface
+import utils.inputprocessor as inputprocessor
+import utils.output as output
 
-import state as module_state
-state = module_state.make_state()
+from utils.cea import run_cea_SI_units, run_cea_default_units
+from physics.geometry import generate_nozzle_contour
+from physics.solver import run_solver
+
+from utils.state import make_state 
+state = make_state()
 
 def on_generate_nozzle():
     # Get inputs from interface
@@ -17,7 +18,6 @@ def on_generate_nozzle():
     # Run the input processor and update state
     clean_params, input_errors = inputprocessor.process_inputs_on_generate(raw_engine_params, raw_nozzle_params)
     if input_errors:
-        print(f"Input Errors: {input_errors}")
         interface.show_errors(input_errors)
         return
     
@@ -26,25 +26,22 @@ def on_generate_nozzle():
 
 
     # Run CEA with SI units
-    cea_errors = cea.run_cea_SI_units(state)
+    cea_errors = run_cea_SI_units(state)
     if cea_errors:
-        print(f"CEA Errors: {cea_errors}")
         interface.show_errors(cea_errors)
         return 
     
 
     # Run CEA with default units
-    cea_errors = cea.run_cea_default_units(state)
+    cea_errors = run_cea_default_units(state)
     if cea_errors:
-        print(f"CEA Errors: {cea_errors}")
         interface.show_errors(cea_errors)
         return
     
 
     # Run Geometry
-    geometry_errors = geometry.run_geometry(state)
+    geometry_errors = generate_nozzle_contour(state)
     if geometry_errors:
-        print(f"Geometry Function Errors: {geometry_errors}")
         interface.show_errors(geometry_errors)
         return
 
@@ -62,24 +59,24 @@ def on_solve():
     # Get inputs from interface
     raw_coolant_params = interface.get_coolant_parameters()
     raw_channel_params = interface.get_channel_parameters()
+    raw_solver_options = interface.get_solver_options()
     control_points = interface.get_control_points()
 
 
     # Run the input processor and update state
-    clean_params, input_errors = inputprocessor.process_inputs_on_confirm_channel_geometry(raw_coolant_params, raw_channel_params, control_points, state)
+    clean_params, input_errors = inputprocessor.process_inputs_on_solve(raw_coolant_params, raw_channel_params, raw_solver_options, control_points, state)
     if input_errors:
-        print(f"Input Errors: {input_errors}")
         interface.show_errors(input_errors)
         return
 
     state["coolant_parameters"].update(clean_params["coolant_parameters"])
     state["channel_parameters"].update(clean_params["channel_parameters"])
+    state["solver_options"].update(clean_params["solver_options"])
 
-
+    
     # Run the solver 
-    solver_errors = solver.run_solver(state)
+    solver_errors = run_solver(state)
     if solver_errors:
-        print(f"Solver Errors: {solver_errors}")
         interface.show_errors(solver_errors)
         return
     

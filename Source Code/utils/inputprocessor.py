@@ -168,11 +168,13 @@ def process_channel_inputs(raw_channel_params: dict, control_points: list[dict],
     else:
         clean["wall_material"] = raw_channel_params["wall_material"]
 
+
     # Wall Thickness
     if raw_channel_params["wall_thickness"] == 0:
         errors.append("Wall thickness must be greater than 0.")
     else:
         clean["wall_thickness"] = length_conversion(raw_channel_params["wall_thickness"], raw_channel_params["unit_wall_thickness"])
+
 
     # Number of Channels
     if raw_channel_params["N_cooling_channels"] < 3:
@@ -180,11 +182,13 @@ def process_channel_inputs(raw_channel_params: dict, control_points: list[dict],
     else:
         clean["N_cooling_channels"] = raw_channel_params["N_cooling_channels"]
 
+
     # Interpolation Type
     if not raw_channel_params["interpolation_type"]:
         errors.append("Interpolation type must be selected.")
     else:
         clean["interpolation_type"] = raw_channel_params["interpolation_type"]
+
 
     # Jacket Resolution
     if raw_channel_params["jacket_resolution"] <= 10:
@@ -241,7 +245,48 @@ def process_channel_inputs(raw_channel_params: dict, control_points: list[dict],
 
     return clean, errors
 
-    
+
+def process_solver_inputs(raw_solver_options: dict, raw_channel_params: dict) -> tuple[dict, list[str]]:
+    errors = []
+    clean = {}
+
+    # Pressure drop model
+    if not raw_solver_options["pressure_drop_model"]:
+        errors.append("Pressure drop model must be selected.")
+    else:
+        clean["pressure_drop_model"] = raw_solver_options["pressure_drop_model"]
+
+
+    # Cold side model
+    if not raw_solver_options["cold_side_model"]:
+        errors.append("Cold side model must be selected.")
+    else:
+        clean["cold_side_model"] = raw_solver_options["cold_side_model"]
+
+
+    # Hot side model
+    if not raw_solver_options["hot_side_model"]:
+        errors.append("Hot side model must be selected.")
+    else:
+        clean["hot_side_model"] = raw_solver_options["hot_side_model"]
+
+
+    # Wall model
+    if not raw_solver_options["wall_model"]:
+        errors.append("Wall model must be selected.")
+    else:
+        clean["wall_model"] = raw_solver_options["wall_model"]
+
+
+    # Roughness — only required for Colebrook variants
+    if clean.get("pressure_drop_model") in ("Colebrook-Petukhov", "Colebrook"):
+        if raw_channel_params["channel_roughness"] == 0:
+            errors.append("Channel roughness (ε) must be greater than 0 μm for Colebrook-based models.")
+        else:
+            clean["channel_roughness"] = raw_channel_params["channel_roughness"] * 1e-6
+
+    return clean, errors
+
 
 
 
@@ -257,15 +302,20 @@ def process_inputs_on_generate(raw_engine_params, raw_nozzle_params) -> tuple[di
 
     return clean_params, input_errors
 
-def process_inputs_on_confirm_channel_geometry(raw_coolant_params: dict, raw_channel_params: dict, control_points: list[str], state: dict) -> tuple[dict, list[str]]:
-    clean_coolant_params, coolant_input_errors = process_coolant_inputs(raw_coolant_params)
-    clean_channel_params, channel_input_errors = process_channel_inputs(raw_channel_params, control_points, state)
 
-    errors = channel_input_errors + coolant_input_errors
+def process_inputs_on_solve(raw_coolant_params: dict, raw_channel_params: dict, raw_solver_options:dict, control_points: list[str], state: dict) -> tuple[dict, list[str]]:
+    clean_coolant_params, coolant_input_errors  = process_coolant_inputs(raw_coolant_params)
+    clean_channel_params, channel_input_errors  = process_channel_inputs(raw_channel_params, control_points, state)
+    clean_solver_options, solver_options_errors = process_solver_inputs(raw_solver_options, raw_channel_params)
+
+    errors = channel_input_errors + coolant_input_errors + solver_options_errors
+
+    clean_channel_params["channel_roughness"] = clean_solver_options.pop("channel_roughness", None)
 
     clean_params = {
         "coolant_parameters" : clean_coolant_params,
         "channel_parameters" : clean_channel_params,
+        "solver_options" :     clean_solver_options
     }
 
     return clean_params, errors

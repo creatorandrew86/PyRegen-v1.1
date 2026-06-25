@@ -5,11 +5,10 @@ from tkinter import filedialog
 import dearpygui.dearpygui as dpg
 
 from rocketcea.cea_obj import CEA_Obj as CEA_Obj_default_units
+import interface.interface as interface
 
-import interface
 
-
-def _ask_save_path(default_filename: str):
+def _ask_save_path(default_filename: str) -> Path | None:
     root = tk.Tk()
     root.withdraw()
     root.wm_attributes("-topmost", True)
@@ -30,7 +29,6 @@ def _ask_save_path(default_filename: str):
 def print_full_cea_output(state: dict):
     # Check if PyRegen ran
     if state["results"]["Q_flux"] is None:
-        print("PyRegen must run before attempting to print any output")
         interface.show_errors(["PyRegen must run before attempting to print any output"])
         return
 
@@ -57,7 +55,6 @@ def print_full_cea_output(state: dict):
 def print_full_output(state: dict):
     # Check if PyRegen ran
     if state["results"]["Q_flux"] is None:
-        print("PyRegen must run before attempting to print any output")
         interface.show_errors(["PyRegen must run before attempting to print any output"])
         return
 
@@ -89,6 +86,10 @@ def print_full_output(state: dict):
     wall_thickness  = state["channel_parameters"]["wall_thickness"]
     N_channels      = state["channel_parameters"]["N_cooling_channels"]
 
+    ctrl_positions      = state["channel_parameters"]["control_points_position"]
+    ctrl_cw             = state["channel_parameters"]["control_points_cw"]
+    ctrl_ch             = state["channel_parameters"]["control_points_ch"]
+
     station_x       = state["nozzle_parameters"]["station_x"]
     station_cw      = state["channel_parameters"]["station_cw"]
     station_ch      = state["channel_parameters"]["station_ch"]
@@ -104,6 +105,11 @@ def print_full_output(state: dict):
     station_Q       = state["results"]["Q_flux"]
     station_hl      = state["results"]["h_coolant"]
     station_hg      = state["results"]["h_gas"]
+
+    pressure_drop_model = state["solver_options"]["pressure_drop_model"]
+    cold_side_model     = state["solver_options"]["cold_side_model"]
+    hot_side_model      = state["solver_options"]["hot_side_model"]
+    wall_model          = state["solver_options"]["wall_model"]
 
     n = len(station_x)
 
@@ -159,7 +165,19 @@ def print_full_output(state: dict):
         f.write(f"  {'Temperature Rise:':<28} {coolant_T_out - coolant_T_in:.2f} K\n")
         f.write(f"  {'Wall Material:':<28} {wall_material}\n")
         f.write(f"  {'Wall Thickness:':<28} {wall_thickness*1000:.2f} mm\n")
-        f.write(f"  {'Number of Channels:':<28} {N_channels}\n")
+        f.write(f"  {'Number of Channels:':<28} {N_channels}\n\n")
+
+        f.write(f"\n  Control Points:\n")
+        f.write(f"    {'#':>4}  {'x[cm]':>10}    {'cw[mm]':>10}    {'ch[mm]':>10}\n")
+        for i, (xp, cw, ch) in enumerate(zip(ctrl_positions, ctrl_cw, ctrl_ch)):
+            f.write(f"    {i+1:>4}   {xp*100:>10.3f}   {cw*1000:>10.3f}   {ch*1000:>10.3f}\n")
+        f.write("\n\n")
+
+        f.write("── Solver Options " + "─" * (total_width - 21) + "\n\n")
+        f.write(f"  {'Pressure Drop Model:':<28} {pressure_drop_model}\n")
+        f.write(f"  {'Cold Side Model:':<28} {cold_side_model}\n")
+        f.write(f"  {'Hot Side Model:':<28} {hot_side_model}\n")
+        f.write(f"  {'Wall Model:':<28} {wall_model}\n")
         f.write("\n\n")
 
         f.write("── Station Data " + "\n")
@@ -232,7 +250,6 @@ graph_y_items = [k for k in VALUE_MAP if k != "Axial position (x) (m)"]
 def print_graph_output(state: dict, values: dict):
     # Check if PyRegen ran
     if state["results"]["Q_flux"] is None:
-        print("PyRegen must run before attempting to print any output")
         interface.show_errors(["PyRegen must run before attempting to print any output"])
         return
 
@@ -247,7 +264,7 @@ def print_graph_output(state: dict, values: dict):
         interface.show_errors(["X and Y axis must be different"])
         return
 
-    if y_axis_value == "Axial position (x) (cm)":
+    if y_axis_value == "Axial position (x) (m)":
         interface.show_errors(["'Axial position (x)' can only be used as the X axis"])
         return
 
@@ -278,6 +295,9 @@ def print_graph_output(state: dict, values: dict):
             dpg.fit_axis_data("y_axis")
 
 
+
+
+
 def print_main_output(state: dict):
     vp_width  = dpg.get_viewport_width()
     vp_height = dpg.get_viewport_height()
@@ -305,10 +325,11 @@ def print_main_output(state: dict):
         dpg.add_text(f"Coolant Temperature Rise: {temp_rise:.2f} K")
 
 
+
+
 def print_nozzle_graph(state: dict):
     # Check if the nozzle generator ran
     if state["nozzle_parameters"]["x"] is None:
-        print("The nozzle generator must run before attempting to show the nozzle graph")
         interface.show_errors(["The nozzle generator must run before attempting to show the nozzle graph"])
         return
     

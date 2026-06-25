@@ -1,17 +1,25 @@
 from pathlib import Path
 import dearpygui.dearpygui as dpg
 
-import output
+import utils.output as output
 
 
 oxidizer_items = ["LOX", "GOX", "N2O4", "N2O", "IRFNA", "H2O2", "Peroxide90", "Peroxide98", "MON3", "MON15", "MON25"]
 fuel_items = ["RP1", "LH2", "CH4", "MMH", "N2H4", "UDMH", "A50", "Ethanol", "Methanol", "GH2", "GCH4", "JetA", "JP10"]
 coolant_items = ["Hydrogen", "Methane", "Ethane", "Ethanol", "Methanol", "Water", "Ammonia", "Nitrogen", "Helium", "Oxygen", "n-Dodecane", "n-Decane", "n-Octane"]
+
 wall_material_items = ["Copper", "GRCop 42", "GRCop 84"]
 interpolation_type_items = ["Linear", "Piecewise Constant"]
+
 graph_x_items = ["Axial position (x) (cm)", "Cold wall temperature (K)", "Hot wall temperature (K)", "Heat flux (MW/m²)", "Coolant temperature (K)", "Coolant pressure (bar)", "Coolant velocity (m/s)", "Coolant Re"]
 graph_y_items = ["Cold wall temperature (K)", "Hot wall temperature (K)", "Gas HTC (×10⁴ W/m²K)", "Coolant HTC (×10⁴ W/m²K)", "Heat flux (MW/m²)", "Coolant temperature (K)", "Coolant pressure (bar)", "Coolant velocity (m/s)", "Coolant Re", "Channel width (mm)", "Channel height (mm)", "Landwidth (mm)"]
-FONT_PATH = Path(__file__).resolve().parent / "assets" / "Inter-VariableFont_opsz,wght.ttf"
+
+pressure_drop_model_items = ["Colebrook-Petukhov", "Filonenko-Petukhov", "Colebrook"]
+cold_side_model_items = ["Gnielinski", "Sieder-Tate", "Dittus-Boelter"]
+hot_side_model_items = ["Bartz"]
+wall_model_items = ["1D"]
+
+FONT_PATH = Path(__file__).resolve().parent.parent / "assets" / "Inter-VariableFont_opsz,wght.ttf"
 
 
 
@@ -63,7 +71,8 @@ def get_channel_parameters() -> dict:
         "unit_wall_thickness" : dpg.get_value("unit_wall_thickness"),
         "N_cooling_channels" : dpg.get_value("input_N_cooling_channels"),
         "jacket_resolution" : dpg.get_value("input_jacket_resolution"),
-        "interpolation_type" : dpg.get_value("interpolation_type")
+        "channel_roughness" : dpg.get_value("input_channel_roughness"),
+        "interpolation_type" : dpg.get_value("interpolation_type"),
     }
 
 
@@ -71,13 +80,33 @@ def get_control_points() -> list[dict]:
     return control_points
 
 
+def get_solver_options() -> dict:
+    return {
+        "pressure_drop_model" : dpg.get_value("input_pressure_drop_model"),
+        "cold_side_model" : dpg.get_value("input_cold_side_model"),
+        "hot_side_model" : dpg.get_value("input_hot_side_model"),
+        "wall_model" : dpg.get_value("input_wall_model"),
+    }
+
+
+# Local callbacks
 def on_generate_graph(state: dict):
     values = {
         "x_value" : dpg.get_value("combo_graph_x"),
         "y_value" : dpg.get_value("combo_graph_y"),
+        "y2_value" : dpg.get_value("combo_graph_y2"),
     }
 
     output.print_graph_output(state, values)
+
+def on_pressure_drop_model_change(sender, app_data):
+    model = app_data
+
+    if model in (["Colebrook-Petukhov", "Colebrook"]):
+        set_enabled("input_channel_roughness")
+    else:
+        set_disabled("input_channel_roughness")
+
 
 
 
@@ -292,7 +321,7 @@ def on_graph_checkbox(sender, app_data):
 
 
 
-# Resize nozzle type input fields when the main window is resized
+# Resize nozzle type inputs
 def resize_nozzle_type_inputs():
     if not dpg.does_item_exist("input_nozzle_angle"):
         return
@@ -305,7 +334,7 @@ def resize_nozzle_type_inputs():
     dpg.configure_item("input_nozzle_angle", width=input_w)
     dpg.configure_item("input_nozzle_length_percentage", width=input_w)
 
-# Resize the throat-sizing input fields when the main window is resized
+# Resize the throat-sizing inputs
 def resize_throat_sizing_inputs():
     if not dpg.does_item_exist("input_mass_flow_rate"):
         return
@@ -318,7 +347,7 @@ def resize_throat_sizing_inputs():
     dpg.configure_item("unit_mass_flow_rate", width=cell_width * 0.17)
     dpg.configure_item("unit_Rt", width=cell_width * 0.17)
 
-# Resize the wall material input fields when the main window is resized
+# Resize the wall material inputs 
 def resize_wall_material_inputs():
     if not dpg.does_item_exist("input_wall_material"):
         return
@@ -342,6 +371,19 @@ def resize_interpolation_type_input():
 
     dpg.configure_item("interpolation_type", width=cell_width * 0.5)
 
+# Resize the channel roughness input 
+def resize_channel_roughness_input():
+    if not dpg.does_item_exist("input_channel_roughness"):
+        return
+
+    cell_width = (dpg.get_item_width("main_window") / 2) * 0.4
+
+    pressure_drop_model_combo_w = int(cell_width * 0.4)
+    channel_roughness_input_w   = int(cell_width * 0.25)
+
+    dpg.configure_item("input_pressure_drop_model", width=pressure_drop_model_combo_w)
+    dpg.configure_item("input_channel_roughness",   width=channel_roughness_input_w)
+
 
 
 def resize_main_window(sender=None, app_data=None, user_data=None):
@@ -355,12 +397,13 @@ def resize_main_window(sender=None, app_data=None, user_data=None):
     resize_throat_sizing_inputs()
     resize_wall_material_inputs()
     resize_interpolation_type_input()
+    resize_channel_roughness_input()
 
     if user_data is not None and user_data["nozzle_parameters"]["x"] is not None:
         update_nozzle_canvas(user_data)
 
 
-def build_interface(on_generate_nozzle, on_solve, state):
+def build_interface(on_generate_nozzle: callable, on_solve: callable, state):
     with dpg.window(tag="main_window", no_title_bar=True, no_resize=True, no_move=True, no_scrollbar=False, width=1200, height=760):
 
         with dpg.table(header_row=False, borders_innerV=True, policy=dpg.mvTable_SizingStretchProp):
@@ -375,7 +418,7 @@ def build_interface(on_generate_nozzle, on_solve, state):
                 # -----------------------------------------------------------------------------------
  
                 with dpg.table_cell():
-                    dpg.add_spacer(height=4)
+                    dpg.add_spacer(height=2)
                     dpg.add_text("Engine Definition", indent=7)
                     dpg.add_separator()
  
@@ -419,17 +462,17 @@ def build_interface(on_generate_nozzle, on_solve, state):
                                 dpg.add_spacer(height=6)
                                 dpg.add_text("Characteristic Length")
                                 with dpg.group(horizontal=True):
-                                    dpg.add_input_float(tag="input_L_star",  width=-65, format="%.2f", min_value=0.0, min_clamped=True)
+                                    dpg.add_input_float(tag="input_L_star", width=-65, format="%.2f", min_value=0.0, min_clamped=True)
                                     dpg.add_combo(tag="unit_L_star", items=["cm", "m", "mm", "in", "ft"], default_value="cm", width=60)
                                 
 
-                        # Chamber Pressure  |  Nozzle Type - Conical
+                        # Chamber Pressure  |  Nozzle Resolution
                         with dpg.table_row():
                             with dpg.table_cell():
                                 dpg.add_spacer(height=6)
                                 dpg.add_text("Chamber Pressure")
                                 with dpg.group(horizontal=True):
-                                    dpg.add_input_float(tag="input_Pc",  width=-65, format="%.2f", min_value=0.0, min_clamped=True)
+                                    dpg.add_input_float(tag="input_Pc", width=-65, format="%.2f", min_value=0.0, min_clamped=True)
                                     dpg.add_combo(tag="unit_Pc", items=["Pa", "kPa", "bar", "MPa", "psi", "atm"], default_value="bar", width=60)
                             with dpg.table_cell():  
                                 dpg.add_spacer(height=6)
@@ -445,8 +488,8 @@ def build_interface(on_generate_nozzle, on_solve, state):
                                 with dpg.group(horizontal=True):
                                     dpg.add_checkbox(label="Mass Flow Rate", tag="check_mass_flow_rate", callback=on_throat_sizing_method)
                                     dpg.add_spacer(width=2)
-                                    dpg.add_input_float(tag="input_mass_flow_rate", format="%.2f", min_value=0.0, min_clamped=True, enabled=False)
-                                    dpg.add_combo(tag="unit_mass_flow_rate", items=["kg/s", "g/s", "kg/min","lb/s"], default_value="kg/s", width=60, enabled=False)
+                                    dpg.add_input_float(tag="input_mass_flow_rate", format="%.2f", min_value=0.0, min_clamped=True)
+                                    dpg.add_combo(tag="unit_mass_flow_rate", items=["kg/s", "g/s", "kg/min","lb/s"], default_value="kg/s", width=60)
                                     set_disabled("input_mass_flow_rate")
                                     set_disabled("unit_mass_flow_rate")
                             with dpg.table_cell():
@@ -456,7 +499,7 @@ def build_interface(on_generate_nozzle, on_solve, state):
                                     dpg.add_checkbox(label="Conical", tag="check_conical", callback=on_nozzle_type)
                                     dpg.add_spacer(width=10)
                                     dpg.add_text("Angle (°)")
-                                    dpg.add_input_float(tag="input_nozzle_angle", format="%.1f", min_value=0.0, min_clamped=True, enabled=False)
+                                    dpg.add_input_float(tag="input_nozzle_angle", format="%.1f", min_value=0.0, min_clamped=True)
                                     set_disabled("input_nozzle_angle")
 
 
@@ -466,8 +509,8 @@ def build_interface(on_generate_nozzle, on_solve, state):
                                 with dpg.group(horizontal=True):
                                     dpg.add_checkbox(label="Throat Radius", tag="check_Rt", callback=on_throat_sizing_method)
                                     dpg.add_spacer(width=14)
-                                    dpg.add_input_float(tag="input_Rt", format="%.2f", min_value=0.0, min_clamped=True, enabled=False)
-                                    dpg.add_combo(tag="unit_Rt", items=["cm", "m", "mm", "in", "ft"], default_value="cm", width=60, enabled=False)
+                                    dpg.add_input_float(tag="input_Rt", format="%.2f", min_value=0.0, min_clamped=True)
+                                    dpg.add_combo(tag="unit_Rt", items=["cm", "m", "mm", "in", "ft"], default_value="cm", width=60)
                                     set_disabled("input_Rt")
                                     set_disabled("unit_Rt")
                             with dpg.table_cell():
@@ -475,7 +518,7 @@ def build_interface(on_generate_nozzle, on_solve, state):
                                     dpg.add_checkbox(label="Bell", tag="check_bell", callback=on_nozzle_type)
                                     dpg.add_spacer(width=20)
                                     dpg.add_text("Length (%)")
-                                    dpg.add_input_float(tag="input_nozzle_length_percentage", format="%.1f", min_value=0.0, min_clamped=True, enabled=False)
+                                    dpg.add_input_float(tag="input_nozzle_length_percentage", format="%.1f", min_value=0.0, min_clamped=True)
                                     set_disabled("input_nozzle_length_percentage")
 
 
@@ -497,7 +540,7 @@ def build_interface(on_generate_nozzle, on_solve, state):
                 # -----------------------------------------------------------------------------------
 
                 with dpg.table_cell():
-                    dpg.add_spacer(height=4)
+                    dpg.add_spacer(height=2)
                     dpg.add_text("Cooling Jacket Definition", indent=7)
                     dpg.add_separator()
 
@@ -527,7 +570,7 @@ def build_interface(on_generate_nozzle, on_solve, state):
                                 dpg.add_spacer(height=6)
                                 dpg.add_text("Coolant Inlet Temperature")
                                 with dpg.group(horizontal=True):
-                                    dpg.add_input_float(tag="input_coolant_inlet_temperature", width=-65, format="%.1f")
+                                    dpg.add_input_float(tag="input_coolant_inlet_temperature", width=-65, format="%.1f", min_value=0.0, min_clamped=True)
                                     dpg.add_combo(tag="unit_coolant_inlet_temperature", items=["K", "C", "F"], default_value="K", width=60)
                             with dpg.table_cell():
                                 dpg.add_spacer(height=6)
@@ -571,7 +614,7 @@ def build_interface(on_generate_nozzle, on_solve, state):
                         dpg.add_table_column(init_width_or_weight=0.33)
 
 
-                        # Interpolation Type  |  Confirm Channel Geometry Button
+                        # Interpolation Type  |  Jacket Resolution
                         with dpg.table_row():
                             with dpg.table_cell():
                                 with dpg.group(horizontal=True):
@@ -582,45 +625,81 @@ def build_interface(on_generate_nozzle, on_solve, state):
                                     dpg.add_text("Jacket Resolution: ")
                                     dpg.add_input_int(tag="input_jacket_resolution", width=-1, min_value=0, min_clamped=True, step=1, step_fast=10)
                             with dpg.table_cell():
-                                dpg.add_button(label="Solve", callback=on_solve, width=-1)
+                                pass
+
+                    # Separator
+                    dpg.add_spacer(height=4)
+                    dpg.add_separator()
+
+                    dpg.add_spacer(height=1)
+                    dpg.add_text("Solver Options", indent=7)
+
+                    with dpg.table(header_row=False, policy=dpg.mvTable_SizingStretchProp):
+                        dpg.add_table_column(init_width_or_weight=0.38)
+                        dpg.add_table_column(init_width_or_weight=0.2)
+                        dpg.add_table_column(init_width_or_weight=0.27)
+                        dpg.add_table_column(init_width_or_weight=0.15)
+
+                        # Solver Control Combos
+                        with dpg.table_row():
+                            with dpg.table_cell():
+                                dpg.add_spacer(height=4)
+                                dpg.add_text("Pressure Drop Model")
+                                with dpg.group(horizontal=True):
+                                    dpg.add_combo(tag="input_pressure_drop_model", items=pressure_drop_model_items, callback=on_pressure_drop_model_change, enabled=True)
+                                    dpg.add_spacer(width=2)
+                                    dpg.add_text("ε (μm):")
+                                    dpg.add_input_float(tag="input_channel_roughness", format="%.1f", min_value=0.0, min_clamped=True)
+                                    set_disabled("input_channel_roughness")
+                            with dpg.table_cell():
+                                dpg.add_spacer(height=4)
+                                dpg.add_text("Cold Side Model")
+                                dpg.add_combo(tag="input_cold_side_model", items=cold_side_model_items, width=-1, enabled=True)
+                            with dpg.table_cell():
+                                dpg.add_spacer(height=4)
+                                dpg.add_text("Hot Side Model")
+                                dpg.add_combo(tag="input_hot_side_model", items=hot_side_model_items, width=-1, enabled=True)
+                            with dpg.table_cell():
+                                dpg.add_spacer(height=4)
+                                dpg.add_text("Wall Model")
+                                dpg.add_combo(tag="input_wall_model", items=wall_model_items, width=-1, enabled=True)
+
+                    dpg.add_spacer(height=4)
+                    dpg.add_button(label="Run PyRegen", callback=on_solve, width=-1)
 
                     # Separator
                     dpg.add_spacer(height=5)
                     dpg.add_separator()
 
-                    dpg.add_spacer(height=5)
-                    dpg.add_text("Output Options")
-
-                    dpg.add_spacer(height=4)
-                    dpg.add_text("Graph Output")
+                    dpg.add_spacer(height=1)
+                    dpg.add_text("Output Options", indent=7)
 
                     # Output Options Table
                     with dpg.table(header_row=False, policy=dpg.mvTable_SizingStretchProp):
-                        dpg.add_table_column(init_width_or_weight=0.33)
-                        dpg.add_table_column(init_width_or_weight=0.34)
-                        dpg.add_table_column(init_width_or_weight=0.33)
+                        dpg.add_table_column(init_width_or_weight=0.13)
+                        dpg.add_table_column(init_width_or_weight=0.29)
+                        dpg.add_table_column(init_width_or_weight=0.29)
+                        dpg.add_table_column(init_width_or_weight=0.29)
 
 
                         # Graph Output X  |  Graph Output Y  |  Generate Graph Button
                         with dpg.table_row():
                             with dpg.table_cell():
-                                dpg.add_spacer(height=5)
+                                dpg.add_spacer(height=4)
+                                dpg.add_text("Graph Output: ")
+                            with dpg.table_cell():
+                                dpg.add_spacer(height=4)
                                 with dpg.group(horizontal=True):
                                     dpg.add_text("X :", indent=7)
                                     dpg.add_combo(tag="combo_graph_x", items=graph_x_items, width=-1, enabled=True)
                             with dpg.table_cell():
-                                dpg.add_spacer(height=5)
+                                dpg.add_spacer(height=4)
                                 with dpg.group(horizontal=True):
                                     dpg.add_text("Y :", indent=7)
                                     dpg.add_combo(tag="combo_graph_y", items=graph_y_items, width=-1, enabled=True)
                             with dpg.table_cell():
-                                dpg.add_spacer(height=5)
+                                dpg.add_spacer(height=4)
                                 dpg.add_button(label="Generate Graph", width=-1, callback=lambda s, a, u: on_generate_graph(state=u), user_data=state)
-
-
-                    # Separator
-                    dpg.add_spacer(height=5)
-                    dpg.add_separator()
                     
 
                     with dpg.table(header_row=False, policy=dpg.mvTable_SizingStretchProp):
@@ -639,7 +718,8 @@ def build_interface(on_generate_nozzle, on_solve, state):
                             with dpg.table_cell():
                                 dpg.add_spacer(height=4)
                                 dpg.add_button(label="Show Nozzle Graph", width=-1, callback=lambda s, a, u: output.print_nozzle_graph(state=u), user_data=state)
-
+                
+                    
 
 
 
@@ -759,6 +839,8 @@ def show_errors(errors):
     if dpg.does_item_exist("error_popup"):
         dpg.delete_item("error_popup")
 
+    print(errors)
+
     with dpg.window(tag="error_popup", label="Input Errors", modal=True, no_resize=True, width=400):
         for e in errors:
             dpg.add_text(f"• {e}", color=(255, 80, 80), wrap=370)
@@ -767,7 +849,7 @@ def show_errors(errors):
 
 
 
-def run_interface(on_generate_nozzle, on_solve, state: dict):
+def run_interface(on_generate_nozzle: callable, on_solve: callable, state: dict):
     dpg.create_context()
 
     with dpg.font_registry():

@@ -17,6 +17,7 @@ def make_state() -> dict:
         "chamber_Cp" : None,
         "chamber_Pr" : None,
         "chamber_viscosity" : None,
+        "species_mass_fractions" : None,
         "station_T_gas" : None,
         "station_T_aw" : None,
         "station_gamma" : None,
@@ -38,6 +39,7 @@ def make_state() -> dict:
         "station_x" : None,
         "station_R" : None,
         "station_eps" : None,
+        "station_zone" : None,
     },
     "coolant_parameters" : {
         "coolant" : None,
@@ -59,6 +61,7 @@ def make_state() -> dict:
         "N_cooling_channels" : None,
         "interpolation_type" : None,
         "jacket_resolution" : None,
+        "channel_roughness" : None,
         "control_points_position" : None,
         "control_points_cw" : None,
         "control_points_ch" : None,
@@ -67,6 +70,13 @@ def make_state() -> dict:
         "station_landwidth" : None,
         "station_Dh" : None,
         "station_A_channel" : None,
+        "station_A_heat_transfer" : None,
+    },
+    "solver_options" : {
+        "pressure_drop_model" : None,
+        "cold_side_model" : None,
+        "hot_side_model" : None,
+        "wall_model" : None,
     },
     "results" : {
         "Q_flux" : None,
