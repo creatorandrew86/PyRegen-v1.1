@@ -2,7 +2,8 @@ import dearpygui.dearpygui as dpg
 from pathlib import Path
 import ctypes
 
-import core.output as output
+from output.files import write_full_cea_output, write_full_pyregen_output
+from output.graphs import main_graph, nozzle_graph
 
 
 oxidizer_items = ["LOX", "GOX", "N2O4", "N2O", "IRFNA", "H2O2", "Peroxide90", "Peroxide98", "MON3", "MON15", "MON25"]
@@ -18,7 +19,7 @@ graph_y_items = ["Cold wall temperature (K)", "Hot wall temperature (K)", "Gas H
 pressure_drop_model_items = ["Colebrook-Petukhov", "Filonenko-Petukhov", "Colebrook"]
 cold_side_model_items = ["Sieder-Tate", "Bishop et al.", "Jackson", "Dittus-Boelter", "Gnielinski"]
 hot_side_model_items = ["Bartz", "Bartz Corrected"]
-wall_model_items = ["1D"]
+wall_model_items = ["1D", "2D"]
 
 FONT_PATH = Path(__file__).resolve().parent.parent / "assets" / "Inter-VariableFont_opsz,wght.ttf"
 
@@ -102,7 +103,7 @@ def on_generate_graph(state: dict):
         "y2_value" : dpg.get_value("combo_graph_y2"),
     }
 
-    output.print_graph_output(state, values)
+    main_graph(state, values)
 
 def on_pressure_drop_model_change(sender, app_data):
     model = app_data
@@ -112,7 +113,7 @@ def on_pressure_drop_model_change(sender, app_data):
     else:
         set_disabled("input_channel_roughness")
 
-def on_hot_side_model_change(sneder, app_data):
+def on_hot_side_model_change(sender, app_data):
     model = app_data
 
     if model == "Bartz Corrected":
@@ -255,8 +256,7 @@ def build_cards():
                     
 
 
-
-# Theme builed function
+# Theme build function
 def build_themes():
         with dpg.theme(tag="disabled_float_entry_theme"):
             with dpg.theme_component(dpg.mvInputFloat, enabled_state=False):
@@ -744,13 +744,13 @@ def build_interface(on_generate_nozzle: callable, on_solve: callable, state):
                             dpg.add_button(label="Generate Graph", width=-1, callback=lambda s, a, u: on_generate_graph(state=u), user_data=state)
                         with dpg.table_cell():
                             dpg.add_spacer(height=4)
-                            dpg.add_button(label="Print Full Output", width=-1, callback=lambda s, a, u: output.print_full_output(state=u), user_data=state)
+                            dpg.add_button(label="Print Full Output", width=-1, callback=lambda s, a, u: write_full_pyregen_output(state=u), user_data=state)
                         with dpg.table_cell():
                             dpg.add_spacer(height=4)
-                            dpg.add_button(label="Print CEA Output", width=-1, callback=lambda s, a, u: output.print_full_cea_output(state=u), user_data=state)
+                            dpg.add_button(label="Print CEA Output", width=-1, callback=lambda s, a, u: write_full_cea_output(state=u), user_data=state)
                         with dpg.table_cell():
                             dpg.add_spacer(height=4)
-                            dpg.add_button(label="Show Nozzle Graph", width=-1, callback=lambda s, a, u: output.print_nozzle_graph(state=u), user_data=state)
+                            dpg.add_button(label="Show Nozzle Graph", width=-1, callback=lambda s, a, u: nozzle_graph(state=u), user_data=state)
 
                 dpg.add_spacer(height=5)
                 dpg.add_separator()
@@ -846,8 +846,6 @@ def draw_horizontal_ruler(nozzle_length_m, scale_x, draw_area_left, axis_line_y)
 
         dpg.draw_line((pixel_x, ruler_baseline_y), (pixel_x, ruler_baseline_y + tick_h), color=tick_color, thickness=2, parent="nozzle_canvas")
         dpg.draw_text((pixel_x - 14, ruler_baseline_y + label_y_offset), f"{round(x_value_m * 100)}cm", size=13, color=tick_color, parent="nozzle_canvas")
-
-
 
 def draw_vertical_ruler(nozzle_max_radius_m, scale_r, axis_line_y, vertical_ruler_width):
     num_vertical_ticks  = 5

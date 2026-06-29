@@ -2,7 +2,6 @@ import interface.interface as interface
 
 from core.inputprocessor import process_inputs_on_generate, process_inputs_on_solve
 from core.geometry import generate_nozzle_contour
-from core.output import initialize_main_output
 from physics.solver import run_solver
 from core.cea import run_cea
 
@@ -66,9 +65,6 @@ def on_solve():
     state["coolant_parameters"].update(clean_params["coolant_parameters"])
     state["channel_parameters"].update(clean_params["channel_parameters"])
     state["solver_options"].update(clean_params["solver_options"])
-
-
-    initialize_main_output()
 
     # Run the solver 
     solver_errors = run_solver(state)

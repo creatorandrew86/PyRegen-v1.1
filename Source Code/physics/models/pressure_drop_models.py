@@ -4,42 +4,45 @@ import numpy as np
 
 # ── Friction factor equaitons ─────────────────────────────────────────────────
 def _f_colebrook(Re: float, Dh: float, roughness: float) -> float:
-    eps_over_Dh = roughness / Dh
+    relative_roughness = roughness / Dh
     rhs = -2.0 * np.log10(
-        eps_over_Dh / 3.7065
-        - (5.0452 / Re) * np.log10(
-            2.8257 * (eps_over_Dh ** 1.1098)
-            + 5.8506 / (Re ** 0.8981)
-        )
+        (relative_roughness / 3.7065) - (5.0452 / Re) * np.log10(2.8257 * pow(relative_roughness, 1.1098) + 5.8506 / (Re ** 0.8981))
     )
-    return 1.0 / (rhs ** 2)
+    f = 1.0 / pow(rhs, 2)
+    return f
 
 def _f_filonenko(Re: float) -> float:
-    return (1.82 * np.log10(Re) - 1.64) ** -2
+    f = pow((1.82 * np.log10(Re) - 1.64), -2)
+    return f
 
 
 
 # ── Corrections ──────────────────────────────────────────────────────────────
-def _petukhov_correction(f: float, T_cold_wall: float, T_bulk: float, wall_Re: float) -> float:
-    exponent = -0.6 + 5.6 * pow(wall_Re, -0.38)
-    return f * pow(T_cold_wall / T_bulk, exponent)
+def _petukhov_correction(f: float, T_cold_wall: float, T: float, p: float, velocity: float, Dh: float, coolant: str) -> float:
+    wall_viscosity = PropsSI("V", "T", T_cold_wall, "P", p, coolant)
+    wall_rho       = PropsSI("D", "T", T_cold_wall, "P", p, coolant)
+    wall_Re = wall_rho * velocity * Dh / wall_viscosity
 
+    exponent = -0.6 + 5.6 * pow(wall_Re, -0.38)
+    return f * pow(T_cold_wall / T, exponent)
+
+
+
+# ── Darcy-Weisbach model ──────────────────────────────────────────────────────
+def _darcy_weisbach(f: float, rho: float, velocity: float, Dh: float, dx: float) -> float:
+    return f * (dx / Dh) * 0.5 * rho * velocity ** 2
 
 
 # ── Area change pressure drop ───────────────────────────────────────────────────
-def _area_change_pressure_drop(state: dict, station_index: int) -> tuple[float, list[str]]:
-    errors = []
-
+def _area_change_pressure_drop(rho: float, velocity: float, Dh_list: list, station_index: int) -> float:
     if station_index == 0:
-        return 0.0, errors
+        return 0.0
 
-    rho      = state["coolant_parameters"]["station_coolant_rho"][station_index]
-    velocity = state["coolant_parameters"]["station_coolant_velocity"][station_index]
-    Dh_i     = state["channel_parameters"]["station_Dh"][station_index]
-    Dh_prev  = state["channel_parameters"]["station_Dh"][station_index - 1]
+    Dh_i    = Dh_list[station_index]
+    Dh_prev = Dh_list[station_index - 1]
 
     if abs(Dh_i - Dh_prev) < 1e-12:
-        return 0.0, errors
+        return 0.0
 
     dynamic_pressure = 0.5 * rho * pow(velocity, 2)
 
@@ -50,20 +53,15 @@ def _area_change_pressure_drop(state: dict, station_index: int) -> tuple[float, 
         area_ratio = pow(Dh_i / Dh_prev, 2)
         K = 0.5 * (1.0 - area_ratio)
 
-    return K * dynamic_pressure, errors
+    return K * dynamic_pressure
 
-
-# ── Darcy-Weisbach model ──────────────────────────────────────────────────────
-def _darcy_weisbach(f: float, rho: float, velocity: float, Dh: float, dx: float) -> float:
-    return f * (dx / Dh) * 0.5 * rho * velocity ** 2
 
 
 
 # ── Colebrook-Petukhov ────────────────────────────────────────────────────────
-def pressure_drop_colebrook_petukhov(state: dict, station_index: int) -> tuple[float, list[str]]:
+def colebrook_petukhov(state: dict, station_index: int) -> tuple[float, list[str]]:
     errors = []
 
-    # Bulk coolant values
     coolant   = state["coolant_parameters"]["coolant"]
     rho       = state["coolant_parameters"]["station_coolant_rho"][station_index]
     velocity  = state["coolant_parameters"]["station_coolant_velocity"][station_index]
@@ -71,38 +69,50 @@ def pressure_drop_colebrook_petukhov(state: dict, station_index: int) -> tuple[f
     T         = state["coolant_parameters"]["station_coolant_T"][station_index]
     p         = state["coolant_parameters"]["station_coolant_p"][station_index]
 
-    # Geoemtry and T_cold_wall
-    Dh          = state["channel_parameters"]["station_Dh"][station_index]
+    Dh_list     = state["channel_parameters"]["station_Dh"]
     roughness   = state["channel_parameters"]["channel_roughness"]
     T_cold_wall = state["results"]["T_cold_wall"][station_index]
     dx          = abs(state["nozzle_parameters"]["station_x"][1] - state["nozzle_parameters"]["station_x"][0])
+    Dh          = Dh_list[station_index]
 
-    # Uncorrected Colebrook friction factor
-    f = _f_colebrook(Re, Dh, roughness)
+
+    # Colebrook friction factor
+    try:
+        f = _f_colebrook(Re, Dh, roughness)
+    except Exception as e:
+        errors.append(f"Colebrook friction factor calculation failed at station: {station_index} with {e}")
+        return 0.0, errors
+
 
     try:
-        wall_viscosity = PropsSI("V", "T", T_cold_wall, "P", p, coolant)
-        wall_rho       = PropsSI("D", "T", T_cold_wall, "P", p, coolant)
+        f = _petukhov_correction(f, T_cold_wall, T, p, velocity, Dh, coolant)
     except Exception as e:
-        errors.append(f"CoolProp wall properties lookup failed at {T_cold_wall:.2f}, at station: {station_index} with {e}")
+        errors.append(f"Petukhov correction failed at station: {station_index} with {e}")
+        return 0.0, errors
 
-    wall_Re = wall_rho * velocity * Dh / wall_viscosity
 
-    # Correct friction factor
-    f = _petukhov_correction(f, T_cold_wall, T, wall_Re)
+    # Pressure drop calculation
+    try:
+        pressure_drop = _darcy_weisbach(f, rho, velocity, Dh, dx)
+    except Exception as e:
+        errors.append(f"Darcy Weisbach pressure drop calculation failed at: {station_index} with {e}")
+        return 0.0, errors
 
-    dP_friction            = _darcy_weisbach(f, rho, velocity, Dh, dx)
-    dP_area, area_errors   = _area_change_pressure_drop(state, station_index)
-    errors.extend(area_errors)
 
-    return dP_friction + dP_area, errors
+    try:
+        pressure_drop += _area_change_pressure_drop(rho, velocity, Dh_list, station_index)
+    except Exception as e:
+        errors.append(f"Area change pressure drop correction failed at: {station_index} with {e}")
+        return 0.0, errors
+
+
+    return pressure_drop, errors
 
 
 # ── Filonenko-Petukhov ────────────────────────────────────────────────────────
-def pressure_drop_filonenko_petukhov(state: dict, station_index: int) -> tuple[float, list[str]]:
+def filonenko_petukhov(state: dict, station_index: int) -> tuple[float, list[str]]:
     errors = []
 
-    # Bulk coolant values
     coolant   = state["coolant_parameters"]["coolant"]
     rho       = state["coolant_parameters"]["station_coolant_rho"][station_index]
     velocity  = state["coolant_parameters"]["station_coolant_velocity"][station_index]
@@ -110,48 +120,79 @@ def pressure_drop_filonenko_petukhov(state: dict, station_index: int) -> tuple[f
     T         = state["coolant_parameters"]["station_coolant_T"][station_index]
     p         = state["coolant_parameters"]["station_coolant_p"][station_index]
 
-    # Geoemtry and T_cold_wall
-    Dh          = state["channel_parameters"]["station_Dh"][station_index]
+    Dh_list     = state["channel_parameters"]["station_Dh"]
     T_cold_wall = state["results"]["T_cold_wall"][station_index]
     dx          = abs(state["nozzle_parameters"]["station_x"][1] - state["nozzle_parameters"]["station_x"][0])
+    Dh          = Dh_list[station_index]
 
-    # uncorrected filonenko friction factor
-    f = _f_filonenko(Re)
+    # Filonenko friction factor
+    try:
+        f = _f_filonenko(Re)
+    except Exception as e:
+        errors.append(f"Colebrook friction factor calculation failed at station: {station_index} with {e}")
+        return 0.0, errors
+
 
     try:
-        wall_viscosity = PropsSI("V", "T", T_cold_wall, "P", p, coolant)
-        wall_rho       = PropsSI("D", "T", T_cold_wall, "P", p, coolant)
+        f = _petukhov_correction(f, T_cold_wall, T, p, velocity, Dh, coolant)
     except Exception as e:
-        errors.append(f"CoolProp wall properties lookup failed at {T_cold_wall:.2f}, at station: {station_index} with {e}")
+        errors.append(f"Petukhov correction failed at station: {station_index} with {e}")
+        return 0.0, errors
 
-    wall_Re = wall_rho * velocity * Dh / wall_viscosity
 
-    # Correct friction factor
-    f = _petukhov_correction(f, T_cold_wall, T, wall_Re)
+    # Pressure drop calculation
+    try:
+        pressure_drop = _darcy_weisbach(f, rho, velocity, Dh, dx)
+    except Exception as e:
+        errors.append(f"Darcy Weisbach pressure drop calculation failed at: {station_index} with {e}")
+        return 0.0, errors
 
-    dP_friction          = _darcy_weisbach(f, rho, velocity, Dh, dx)
-    dP_area, area_errors = _area_change_pressure_drop(state, station_index)
-    errors.extend(area_errors)
 
-    return dP_friction + dP_area, errors
+    try:
+        pressure_drop += _area_change_pressure_drop(rho, velocity, Dh_list, station_index)
+    except Exception as e:
+        errors.append(f"Area change pressure drop correction failed at: {station_index} with {e}")
+        return 0.0, errors
+
+
+    return pressure_drop, errors
 
 
 # ── Colebrook ───────────────────────────────────────────────────────────────────
-def pressure_drop_colebrook(state: dict, station_index: int) -> tuple[float, list[str]]:
+def colebrook(state: dict, station_index: int) -> tuple[float, list[str]]:
     errors = []
 
     rho       = state["coolant_parameters"]["station_coolant_rho"][station_index]
     velocity  = state["coolant_parameters"]["station_coolant_velocity"][station_index]
-    Re_bulk   = state["coolant_parameters"]["station_coolant_Re"][station_index]
-    Dh        = state["channel_parameters"]["station_Dh"][station_index]
+    Re        = state["coolant_parameters"]["station_coolant_Re"][station_index]
     roughness = state["channel_parameters"]["channel_roughness"]
 
-    dx = abs(state["nozzle_parameters"]["station_x"][1] - state["nozzle_parameters"]["station_x"][0])
+    Dh_list = state["channel_parameters"]["station_Dh"]
+    dx      = abs(state["nozzle_parameters"]["station_x"][1] - state["nozzle_parameters"]["station_x"][0])
+    Dh      = Dh_list[station_index]
 
-    f = _f_colebrook(Re_bulk, Dh, roughness)
 
-    dP_friction          = _darcy_weisbach(f, rho, velocity, Dh, dx)
-    dP_area, area_errors = _area_change_pressure_drop(state, station_index)
-    errors.extend(area_errors)
 
-    return dP_friction + dP_area, errors
+    # Colebrook friction factor
+    try:
+        f = _f_colebrook(Re, Dh, roughness)
+    except Exception as e:
+        errors.append(f"Colebrook friction factor calculation failed at station: {station_index} with {e}")
+        return 0.0, errors
+
+
+    # Pressure drop calculation
+    try:
+        pressure_drop = _darcy_weisbach(f, rho, velocity, Dh, dx)
+    except Exception as e:
+        errors.append(f"Darcy Weisbach pressure drop calculation failed at: {station_index} with {e}")
+        return 0.0, errors
+
+
+    try:
+        pressure_drop += _area_change_pressure_drop(rho, velocity, Dh_list, station_index)
+    except Exception as e:
+        errors.append(f"Area change pressure drop correction failed at: {station_index} with {e}")
+        return 0.0, errors
+
+    return pressure_drop, errors

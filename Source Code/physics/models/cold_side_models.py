@@ -40,33 +40,8 @@ def _entrance_correction(station_x: list, station_index: int, Dh: float, T: floa
 
 
 
-# ── Nusselt Number Equations ─────────────────────────────────────────────────
-def _gnielinski_nu(Re: float, Pr: float) -> float:
-    f  = pow(0.79 * np.log(Re) - 1.64, -2)
-    Nu = ((f / 8) * (Re - 1000) * Pr) / (1 + 12.7 * np.sqrt((f / 8) * (pow(Pr, 2/3) - 1)))
-    return Nu
-
-def _sieder_tate_nu(Re: float, Pr: float) -> float:
-    Nu = 0.027 * pow(Re, 0.8) * pow(Pr, 1/3)
-    return Nu
-
-def _dittus_boelter_nu(Re: float, Pr: float, heating: bool) -> float:
-    n  = 0.4 if heating else 0.3
-    Nu = 0.023 * pow(Re, 0.8) * pow(Pr, n)
-    return Nu
-
-def _bishop_nu(Re: float, Pr: float) -> float:
-    Nu = 0.0069 * pow(Re, 0.9) * pow(Pr, 0.66)
-    return Nu
-
-def _jackson_nu(Re: float, Pr: float) -> float:
-    Nu = 0.0183 * pow(Re, 0.82) * pow(Pr, 0.5)
-    return Nu
-
-
-
 # ── Gnielinski ───────────────────────────────────────────────────────────────
-def cold_side_gnielinski(state: dict, station_index: int, T_cold_wall: float) -> tuple[float, list[str]]:
+def gnielinski(state: dict, station_index: int, T_cold_wall: float) -> tuple[float, list[str]]:
     """
     Gnielinski correlation with roughness correction.
     Valid: 3000 < Re < 1e6.
@@ -85,7 +60,9 @@ def cold_side_gnielinski(state: dict, station_index: int, T_cold_wall: float) ->
     p       = state["coolant_parameters"]["station_coolant_p"][station_index]
 
     try:
-        h_coolant = _gnielinski_nu(Re, Pr) * k / Dh
+        f  = pow(0.79 * np.log(Re) - 1.64, -2)
+        Nu = ((f / 8) * (Re - 1000) * Pr) / (1 + 12.7 * np.sqrt((f / 8) * (pow(Pr, 2/3) - 1)))
+        h_coolant = Nu * k / Dh
     except Exception as e:
         errors.append(f"Gnielinski Nusselt number calculation failed at station {station_index}: {e}")
         return 0.0, errors
@@ -115,7 +92,7 @@ def cold_side_gnielinski(state: dict, station_index: int, T_cold_wall: float) ->
 
 
 # ── Sieder-Tate ───────────────────────────────────────────────────────────────
-def cold_side_sieder_tate(state: dict, station_index: int, T_cold_wall: float) -> tuple[float, list[str]]:
+def sieder_tate(state: dict, station_index: int, T_cold_wall: float) -> tuple[float, list[str]]:
     """
     Sieder-Tate correlation with roughness correction.
     Valid: Re > 1e4, large wall-to-bulk viscosity ratio.
@@ -135,7 +112,8 @@ def cold_side_sieder_tate(state: dict, station_index: int, T_cold_wall: float) -
  
 
     try:
-        h_coolant = _sieder_tate_nu(Re, Pr) * k / Dh
+        Nu = 0.027 * pow(Re, 0.8) * pow(Pr, 1/3)
+        h_coolant = Nu * k / Dh
     except Exception as e:
         errors.append(f"Sieder-Tate Nusselt number calculation failed at station {station_index}: {e}")
         return 0.0, errors
@@ -165,7 +143,7 @@ def cold_side_sieder_tate(state: dict, station_index: int, T_cold_wall: float) -
 
 
 # ── Dittus-Boelter ───────────────────────────────────────────────────────────
-def cold_side_dittus_boelter(state: dict, station_index: int, T_cold_wall: float) -> tuple[float, list[str]]:
+def dittus_boelter(state: dict, station_index: int, T_cold_wall: float) -> tuple[float, list[str]]:
     """
     Dittus-Boelter correlation with roughness and entrance corrections.
     Valid: Re > 1e4, 0.6 < Pr < 160, smooth tubes, low wall-to-bulk temperature ratio.
@@ -183,7 +161,8 @@ def cold_side_dittus_boelter(state: dict, station_index: int, T_cold_wall: float
     p       = state["coolant_parameters"]["station_coolant_p"][station_index]
 
     try:
-        h_coolant = _dittus_boelter_nu(Re, Pr, heating=True) * k / Dh
+        Nu = 0.023 * pow(Re, 0.8) * pow(Pr, 0.4)
+        h_coolant = Nu * k / Dh
     except Exception as e:
         errors.append(f"Dittus-Boelter Nusselt number calculation failed at station {station_index}: {e}")
         return 0.0, errors
@@ -213,7 +192,7 @@ def cold_side_dittus_boelter(state: dict, station_index: int, T_cold_wall: float
 
 
 # ── Bishop et al. ────────────────────────────────────────────────────────────────
-def cold_side_bishop(state: dict, station_index: int, T_cold_wall: float) -> tuple[float, list[str]]:
+def bishop(state: dict, station_index: int, T_cold_wall: float) -> tuple[float, list[str]]:
     """
     Bishop et al. correlation with roughness and entrance corrections.
     Best model for cooling channel heat transfer
@@ -232,7 +211,8 @@ def cold_side_bishop(state: dict, station_index: int, T_cold_wall: float) -> tup
     p       = state["coolant_parameters"]["station_coolant_p"][station_index]
 
     try:
-        h_coolant = _bishop_nu(Re, Pr) * k / Dh
+        Nu = 0.0069 * pow(Re, 0.9) * pow(Pr, 0.66)
+        h_coolant = Nu * k / Dh
     except Exception as e:
         errors.append(f"Bishop Nusselt numbe calculation failed at station {station_index}: {e}")
         return 0.0, errors
@@ -262,7 +242,7 @@ def cold_side_bishop(state: dict, station_index: int, T_cold_wall: float) -> tup
 
 
 # ── Jackson ────────────────────────────────────────────────────────────────────
-def cold_side_jackson(state: dict, station_index: int, T_cold_wall: float) -> tuple[float, list[str]]:
+def jackson(state: dict, station_index: int, T_cold_wall: float) -> tuple[float, list[str]]:
     """
     Jackson correlation with roughness and entrance corrections.
     Best model for supercritical fluids
@@ -281,7 +261,8 @@ def cold_side_jackson(state: dict, station_index: int, T_cold_wall: float) -> tu
     p       = state["coolant_parameters"]["station_coolant_p"][station_index]
 
     try:
-        h_coolant = _jackson_nu(Re, Pr) * k / Dh
+        Nu = 0.0183 * pow(Re, 0.82) * pow(Pr, 0.5)
+        h_coolant = Nu * k / Dh
     except Exception as e:
         errors.append(f"Jackson Nusselt number calculation failed at station {station_index}: {e}")
         return 0.0, errors

@@ -1,8 +1,8 @@
 from CoolProp.CoolProp import PropsSI
 
 from physics.models.registry import PRESSURE_DROP, COLD_SIDE, HOT_SIDE, WALL
+from output.output import header, print_main_output
 from core.geometry import generate_jacket_geometry
-from core.output import print_main_output
 from core.cea import get_station_values
 
 def initialize_state(state: dict, station_index: int) -> list[str]:
@@ -145,6 +145,9 @@ def run_solver(state: dict) -> list[str]:
     cold_side_model     = COLD_SIDE[state["solver_options"]["cold_side_model"]]
     hot_side_model      = HOT_SIDE[state["solver_options"]["hot_side_model"]]
     wall_model          = WALL[state["solver_options"]["wall_model"]]
+
+    # Initialize header for interface output
+    header()
 
     # ── Station loop ─────────────────────────────────────────────────────
     for station_index in range(jacket_resolution):

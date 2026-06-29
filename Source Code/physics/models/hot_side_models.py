@@ -20,14 +20,12 @@ def _injection_correction(x: float, injector_velocity_ratio: float, N_injectors:
     Dc = Rt * np.sqrt(CR)
     corrected_x = (x + 0.4 * injector_velocity_ratio) / (100 * Dc / np.sqrt(N_injectors))
     injection_factor = float(max(0.4, min(corrected_x * 2/15 - 1/3, 1)))
-
-    print(injection_factor)
     
     return injection_factor if zone == 1 else 1.0
 
 
 # ── Bartz ─────────────────────────────────────────────────────────────────────
-def hot_side_bartz(state: dict, station_index: int, T_hot_wall: float) -> tuple[float, list[str]]:
+def bartz(state: dict, station_index: int, T_hot_wall: float) -> tuple[float, list[str]]:
     """
     Bartz correlation for hot-gas-side heat transfer.
     """
@@ -68,7 +66,7 @@ def hot_side_bartz(state: dict, station_index: int, T_hot_wall: float) -> tuple[
 
 
 # ── Corrected Bartz ─────────────────────────────────────────────────────────
-def hot_side_bartz_corrected(state: dict, station_index: int, T_hot_wall: float) -> tuple[float, list[str]]:
+def bartz_corrected(state: dict, station_index: int, T_hot_wall: float) -> tuple[float, list[str]]:
     """
     Corrected Bartz correlation for hot-gas-side heat transfer.
     """

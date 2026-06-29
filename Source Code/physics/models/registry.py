@@ -1,41 +1,44 @@
 from .cold_side_models import (
-    cold_side_gnielinski,
-    cold_side_sieder_tate,
-    cold_side_dittus_boelter,
-    cold_side_bishop,
-    cold_side_jackson,
+    gnielinski,
+    sieder_tate,
+    dittus_boelter,
+    bishop,
+    jackson,
 )
 from .hot_side_models import (
-    hot_side_bartz,
-    hot_side_bartz_corrected,
+    bartz,
+    bartz_corrected,
 )
 from .pressure_drop_models import (
-    pressure_drop_colebrook_petukhov,
-    pressure_drop_filonenko_petukhov,
-    pressure_drop_colebrook,
+    colebrook_petukhov,
+    filonenko_petukhov,
+    colebrook,
 )
 
 from .wall_1d import wall_1d_fin
+from .wall_2d import wall_2d
+
 
 PRESSURE_DROP = {
-    "Colebrook-Petukhov":    pressure_drop_colebrook_petukhov,
-    "Filonenko-Petukhov":    pressure_drop_filonenko_petukhov,
-    "Colebrook":             pressure_drop_colebrook,
+    "Colebrook-Petukhov":    colebrook_petukhov,
+    "Filonenko-Petukhov":    filonenko_petukhov,
+    "Colebrook":             colebrook,
 }
 
 COLD_SIDE = {
-    "Gnielinski":     cold_side_gnielinski,
-    "Sieder-Tate":    cold_side_sieder_tate,
-    "Dittus-Boelter": cold_side_dittus_boelter,
-    "Bishop et al.":  cold_side_bishop,
-    "Jackson":        cold_side_jackson,
+    "Gnielinski":     gnielinski,
+    "Sieder-Tate":    sieder_tate,
+    "Dittus-Boelter": dittus_boelter,
+    "Bishop et al.":  bishop,
+    "Jackson":        jackson,
 }
 
 HOT_SIDE = {
-    "Bartz":           hot_side_bartz,
-    "Bartz Corrected": hot_side_bartz_corrected
+    "Bartz":           bartz,
+    "Bartz Corrected": bartz_corrected
 }
 
 WALL = {
     "1D": wall_1d_fin,
+    "2D": wall_2d,
 }
