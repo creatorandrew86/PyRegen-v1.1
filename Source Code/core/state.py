@@ -8,6 +8,8 @@ def make_state() -> dict:
         "throat_sizing_method" : None,
         "mass_flow_rate" : None,
         "Rt" : None,
+        "N_injectors" : None,
+        "injector_velocity_ratio" : None,
         "CEA_Obj_SI_units" : None,
         "CEA_Obj_default_units" : None,
         "Tc" : None,

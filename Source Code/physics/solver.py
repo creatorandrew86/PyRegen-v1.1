@@ -1,10 +1,9 @@
-from scipy.interpolate import interp1d
 from CoolProp.CoolProp import PropsSI
-import numpy as np
 
 from physics.models.registry import PRESSURE_DROP, COLD_SIDE, HOT_SIDE, WALL
-from physics.geometry import generate_jacket_geometry
-from utils.cea import get_station_values
+from core.geometry import generate_jacket_geometry
+from core.output import print_main_output
+from core.cea import get_station_values
 
 def initialize_state(state: dict, station_index: int) -> list[str]:
     errors = []
@@ -22,7 +21,7 @@ def initialize_state(state: dict, station_index: int) -> list[str]:
     zone        = state["nozzle_parameters"]["station_zone"][station_index]
 
     # Fetch the station values from CEA
-    T_gas, T_aw, gamma, mach, Pr_gas, cea_errors = get_station_values(state, station_index, zone)
+    T_gas, T_aw, gamma, mach, cea_errors = get_station_values(state, station_index, zone)
     errors.extend(cea_errors)
 
 
@@ -107,8 +106,8 @@ def run_solver(state: dict) -> list[str]:
     jacket_resolution = state["channel_parameters"]["jacket_resolution"]
 
     # Generate the jacket geometry
-    jacket_errors = generate_jacket_geometry(state)
-    errors.extend(jacket_errors)
+    jacket_geometry_errors = generate_jacket_geometry(state)
+    errors.extend(jacket_geometry_errors)
 
 
     # ── Inlet coolant enthalpy ────────────────────────────────────────────
@@ -163,10 +162,7 @@ def run_solver(state: dict) -> list[str]:
             return errors
         
 
-        # Values for console output
-        x = state["nozzle_parameters"]["station_x"][station_index]
         coolant_T = state["coolant_parameters"]["station_coolant_T"][-1]
-        coolant_p = state["coolant_parameters"]["station_coolant_p"][-1]
         T_aw = state["engine_parameters"]["station_T_aw"][station_index]
         
         h_coolant = Q_flux / (T_cold_wall - coolant_T)
@@ -184,13 +180,8 @@ def run_solver(state: dict) -> list[str]:
 
         if update_state_errors:
             return errors
-        
 
-        print(
-            f"Station: {station_index:>4d} | "
-            f"x:{x*100:>6.2f} cm | "
-            f"Coolant Temp:{coolant_T:>7.2f} K   Coolant Pressure:{coolant_p/1e5:>7.2f} bar | "
-            f"Hot Wall Temp:{T_hot_wall:>7.2f} K   Heat Flux: {Q_flux/1e6:>7.3f} MW/m²"
-        )
+        # Print to main output
+        print_main_output(state, station_index)
 
     return errors

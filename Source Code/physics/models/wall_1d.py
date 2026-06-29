@@ -2,7 +2,7 @@ from scipy.interpolate import interp1d
 from scipy.optimize import fsolve
 import numpy as np
 
-from assets.fetchdata import THERMAL_CONDUCTIVITY_DATA
+from assets.data import THERMAL_CONDUCTIVITY_DATA
 
 
 # ── Wall thermal conductivity ─────────────────────────────────────────────────
@@ -19,7 +19,7 @@ def _wall_thermal_conductivity(wall_material: str, T_cold_wall: float, station_i
     return wall_thermal_conductivity, errors
 
 
-# ── Fin efficiency ────────────────────────────────────────────────────────────
+# ── Fin model ───────────────────────────────────────────────────────────────────
 def _fin_model(Q_flux_cold, h_coolant, wall_k, ch, cw, landwidth, N_channels: int, station_R) -> float:
     corrected_fin_height = ch + landwidth / 2.0
     m_fin                = np.sqrt(2.0 * h_coolant / (wall_k * landwidth))
@@ -77,7 +77,7 @@ def wall_1d_fin(state: dict, station_index: int, cold_side_model: callable, hot_
     T_cold_wall_solution = float(T_cold_wall_solution[0])
 
     if ier != 1:
-        errors.append(f"Station {station_index}: wall_1d did not converge — {msg}")
+        errors.append(f"Station {station_index}: 1D model did not converge — {msg}")
         return 0.0, 0.0, 0.0, errors
 
 

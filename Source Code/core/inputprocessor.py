@@ -13,6 +13,7 @@ def length_conversion(value: float, unit: str) -> float:
         case "cm":  return value / 100
         case "mm":  return value / 1000
         case "in":  return value * 0.0254
+        case "ft":  return value / 3.28
 
 def temperature_conversion(value, unit):
     match unit:
@@ -246,7 +247,7 @@ def process_channel_inputs(raw_channel_params: dict, control_points: list[dict],
     return clean, errors
 
 
-def process_solver_inputs(raw_solver_options: dict, raw_channel_params: dict) -> tuple[dict, list[str]]:
+def process_solver_inputs(raw_solver_options: dict) -> tuple[dict, list[str]]:
     errors = []
     clean = {}
 
@@ -280,10 +281,24 @@ def process_solver_inputs(raw_solver_options: dict, raw_channel_params: dict) ->
 
     # Roughness — only required for Colebrook variants
     if clean.get("pressure_drop_model") in ("Colebrook-Petukhov", "Colebrook"):
-        if raw_channel_params["channel_roughness"] == 0:
+        if raw_solver_options["channel_roughness"] == 0:
             errors.append("Channel roughness (ε) must be greater than 0 μm for Colebrook-based models.")
         else:
-            clean["channel_roughness"] = raw_channel_params["channel_roughness"] * 1e-6
+            clean["channel_roughness"] = raw_solver_options["channel_roughness"] * 1e-6
+
+    
+    # Number of injectors and injector velocity ratio - Only required for corrected Bartz
+    if clean.get("hot_side_model") == "Bartz Corrected":
+        if raw_solver_options["N_injectors"] == 0:
+            errors.append("The number of injectors must be greater than 0 for Bartz Corrected.")
+        else:
+            clean["N_injectors"] = raw_solver_options["N_injectors"]
+
+        if raw_solver_options["injector_velocity_ratio"] == 0:
+            errors.append("Injector velocity ratio must be greater than 0 for Bartz Corrected.")
+        else:
+            clean["injector_velocity_ratio"] = raw_solver_options["injector_velocity_ratio"]
+    
 
     return clean, errors
 
@@ -302,11 +317,11 @@ def process_inputs_on_generate(raw_engine_params, raw_nozzle_params) -> tuple[di
 
     return clean_params, input_errors
 
-
-def process_inputs_on_solve(raw_coolant_params: dict, raw_channel_params: dict, raw_solver_options:dict, control_points: list[str], state: dict) -> tuple[dict, list[str]]:
+def process_inputs_on_solve(raw_coolant_params: dict, raw_channel_params: dict, raw_solver_options: dict, control_points: list[str], state: dict) -> tuple[dict, list[str]]:
+    
     clean_coolant_params, coolant_input_errors  = process_coolant_inputs(raw_coolant_params)
     clean_channel_params, channel_input_errors  = process_channel_inputs(raw_channel_params, control_points, state)
-    clean_solver_options, solver_options_errors = process_solver_inputs(raw_solver_options, raw_channel_params)
+    clean_solver_options, solver_options_errors = process_solver_inputs(raw_solver_options)
 
     errors = channel_input_errors + coolant_input_errors + solver_options_errors
 

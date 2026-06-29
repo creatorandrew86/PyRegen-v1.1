@@ -8,6 +8,42 @@ from rocketcea.cea_obj import CEA_Obj as CEA_Obj_default_units
 import interface.interface as interface
 
 
+VALUE_MAP = {
+    "Axial position (x) (cm)":                      ("nozzle_parameters",  "station_x",                   lambda v: v * 1e2),
+    "Cold wall temperature (K)":                    ("results",            "T_cold_wall",                 lambda v: v),
+    "Hot wall temperature (K)":                     ("results",            "T_hot_wall",                  lambda v: v),
+    "Gas HTC (×10⁴ W/m²K)":                         ("results",            "h_gas",                       lambda v: v / 1e4),
+    "Coolant HTC (×10⁴ W/m²K)":                     ("results",            "h_coolant",                   lambda v: v / 1e4),
+    "Heat flux (MW/m²)":                            ("results",            "Q_flux",                      lambda v: v / 1e6),
+    "Coolant temperature (K)":                      ("coolant_parameters", "station_coolant_T",           lambda v: v),
+    "Coolant pressure (bar)":                       ("coolant_parameters", "station_coolant_p",           lambda v: v / 1e5),
+    "Coolant velocity (m/s)":                       ("coolant_parameters", "station_coolant_velocity",    lambda v: v),
+    "Coolant Re":                                   ("coolant_parameters", "station_coolant_Re",          lambda v: v),
+    "Channel width (mm)":                           ("channel_parameters", "station_cw",                  lambda v: v * 1e3),
+    "Channel height (mm)":                          ("channel_parameters", "station_ch",                  lambda v: v * 1e3),
+    "Landwidth (mm)":                               ("channel_parameters", "station_landwidth",           lambda v: v * 1e3),
+    }
+
+graph_x_items = list(VALUE_MAP.keys())
+graph_y_items = [k for k in VALUE_MAP if k != "Axial position (x) (m)"]
+
+COLUMNS = [
+    ("Station",                       None,                                                 "{:d}",    None,            0.28),
+    ("x(m)",                          ("nozzle_parameters",  "station_x"),                  "{:.2f}",  None,            0.25),
+    ("Channel Width(mm)",             ("channel_parameters", "station_cw"),                 "{:.3f}",  lambda v: v*1e3, 0.90),
+    ("Channel Height(mm)",            ("channel_parameters", "station_ch"),                 "{:.3f}",  lambda v: v*1e3, 0.95),
+    ("Landwidth(mm)",                 ("channel_parameters", "station_landwidth"),          "{:.3f}",  lambda v: v*1e3, 0.70),
+    ("Coolant Temp(K)",               ("coolant_parameters", "station_coolant_T"),          "{:.2f}",  None,            0.90),
+    ("Coolant Pressure(bar)",         ("coolant_parameters", "station_coolant_p"),          "{:.2f}",  lambda v: v/1e5, 1.00),
+    ("Hot Wall Temp(K)",              ("results",            "T_hot_wall"),                 "{:.2f}",  None,            0.88),
+    ("Coolant HTC(×10⁴ W/m²·K)",       ("results",            "h_coolant"),                 "{:.3f}",  lambda v: v/1e4, 1.40),
+    ("Gas HTC(×10⁴ W/m²·K)",           ("results",            "h_gas"),                     "{:.3f}",  lambda v: v/1e4, 1.30),
+    ("Heat Flux(MW/m²)",              ("results",            "Q_flux"),                     "{:.3f}",  lambda v: v/1e6, 0.85),
+]
+
+TABLE_TAG = "results_table"
+
+
 def _ask_save_path(default_filename: str) -> Path | None:
     root = tk.Tk()
     root.withdraw()
@@ -227,24 +263,7 @@ def print_full_output(state: dict):
 
 
 
-VALUE_MAP = {
-    "Axial position (x) (cm)":                      ("nozzle_parameters",  "station_x",                   lambda v: v * 1e2),
-    "Cold wall temperature (K)":                    ("results",            "T_cold_wall",                 lambda v: v),
-    "Hot wall temperature (K)":                     ("results",            "T_hot_wall",                  lambda v: v),
-    "Gas HTC (×10⁴ W/m²K)":                         ("results",            "h_gas",                       lambda v: v / 1e4),
-    "Coolant HTC (×10⁴ W/m²K)":                     ("results",            "h_coolant",                   lambda v: v / 1e4),
-    "Heat flux (MW/m²)":                            ("results",            "Q_flux",                      lambda v: v / 1e6),
-    "Coolant temperature (K)":                      ("coolant_parameters", "station_coolant_T",           lambda v: v),
-    "Coolant pressure (bar)":                       ("coolant_parameters", "station_coolant_p",           lambda v: v / 1e5),
-    "Coolant velocity (m/s)":                       ("coolant_parameters", "station_coolant_velocity",    lambda v: v),
-    "Coolant Re":                                   ("coolant_parameters", "station_coolant_Re",          lambda v: v),
-    "Channel width (mm)":                           ("channel_parameters", "station_cw",                  lambda v: v * 1e3),
-    "Channel height (mm)":                          ("channel_parameters", "station_ch",                  lambda v: v * 1e3),
-    "Landwidth (mm)":                               ("channel_parameters", "station_landwidth",           lambda v: v * 1e3),
-    }
 
-graph_x_items = list(VALUE_MAP.keys())
-graph_y_items = [k for k in VALUE_MAP if k != "Axial position (x) (m)"]
 
 
 def print_graph_output(state: dict, values: dict):
@@ -296,37 +315,6 @@ def print_graph_output(state: dict, values: dict):
 
 
 
-
-
-def print_main_output(state: dict):
-    vp_width  = dpg.get_viewport_width()
-    vp_height = dpg.get_viewport_height()
-    window_width  = 350
-    window_height = 180
-
-    pos_x = (vp_width  - window_width)  // 2
-    pos_y = (vp_height - window_height) // 2
-
-    window_tag = "main_output_window"
-    if dpg.does_item_exist(window_tag):
-        dpg.delete_item(window_tag)
-
-    max_heat_flux    = max(state["results"]["Q_flux"]) / 1e6
-    max_hot_wall_T   = max(state["results"]["T_hot_wall"])
-    pressure_drop    = abs((state["coolant_parameters"]["station_coolant_p"][0] - state["coolant_parameters"]["station_coolant_p"][-1]) / 1e5)
-    temp_rise        = state["coolant_parameters"]["station_coolant_T"][-1] - state["coolant_parameters"]["station_coolant_T"][0]
-
-    with dpg.window(label="Output", tag=window_tag, width=350, height=180, modal=False, no_resize=True, pos=(pos_x, pos_y)):
-        dpg.add_text("Results Summary")
-        dpg.add_separator()
-        dpg.add_text(f"Maximum Heat Flux: {max_heat_flux:.2f} MW/m²")
-        dpg.add_text(f"Maximum Hot Wall Temperature: {max_hot_wall_T:.2f} K")
-        dpg.add_text(f"Coolant Pressure Drop: {pressure_drop:.2f} bar")
-        dpg.add_text(f"Coolant Temperature Rise: {temp_rise:.2f} K")
-
-
-
-
 def print_nozzle_graph(state: dict):
     # Check if the nozzle generator ran
     if state["nozzle_parameters"]["x"] is None:
@@ -366,3 +354,56 @@ def print_nozzle_graph(state: dict):
 
             dpg.fit_axis_data("nozzle_x_axis")
             dpg.fit_axis_data("nozzle_y_axis")
+        
+        
+
+def initialize_main_output():
+    """
+    Clears the results child window and rebuilds the table with headers.
+    Call this once before starting a new solver run.
+    """
+    dpg.delete_item("results_output_window", children_only=True)
+
+    with dpg.table(
+        tag=TABLE_TAG,
+        parent="results_output_window",
+        header_row=True,
+        borders_innerV=True,
+        borders_outerV=True,
+        borders_innerH=True,
+        borders_outerH=True,
+        scrollX=False,
+        scrollY=True,
+        freeze_rows=1,
+        policy=dpg.mvTable_SizingStretchProp,
+        resizable=True,
+    ):
+        for label, _, _, _, weight in COLUMNS:
+            dpg.add_table_column(label=label, init_width_or_weight=float(weight))
+
+
+def print_main_output(state: dict, station_index: int):
+    """
+    Appends one row to the results table for the given station_index.
+    initialize_main_output() must have been called before the first call
+    to this function in a solver run.
+    """
+    with dpg.table_row(parent=TABLE_TAG):
+        for _, key_path, fmt, convert, _ in COLUMNS:
+
+            if key_path is None:
+                value_str = fmt.format(station_index)
+            else:
+                section, key = key_path
+                raw = state[section][key]
+                try:
+                    val = raw[station_index]
+                    if convert is not None:
+                        val = convert(val)
+                    value_str = fmt.format(val)
+                except (TypeError, IndexError):
+                    value_str = "N/A"
+
+            dpg.add_text(value_str)
+
+    dpg.set_y_scroll("results_output_window", dpg.get_y_scroll_max("results_output_window"))
