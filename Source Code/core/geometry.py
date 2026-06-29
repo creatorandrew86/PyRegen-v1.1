@@ -228,33 +228,3 @@ def generate_jacket_geometry(state: dict) -> list[str]:
         return errors
 
     return errors
-
-
-def generate_mesh(nx: int, ny: int, cw: float, ch: float, lw: float, t: float) -> dict:
-    mesh_width = (lw + cw) / 2
-    mesh_height = ch + 2 * t
-
-    x = np.linspace(0, mesh_width, nx)
-    y = np.linspace(0, mesh_height, ny)
-
-    # Channel bounds
-    x0 = (mesh_width - cw / 2)
-    x1 = x0 + cw
-    y0 = (mesh_height - ch - t)
-    y1 = y0 + ch
-
-    mask = np.ones((nx, ny), dtype=bool)
-    index_map = -np.ones((nx, ny), dtype=int)
-
-    counter = 0
-    for i in range(nx):
-        for j in range(ny):
-            if (x0 <= x[i] <= x1 and y0 <= y[j] <= y1):
-                mask[i, j] = False
-            else:
-                index_map[i, j] = counter
-                counter += 1
-
-    mesh = {"nx": nx, "ny": ny, "x": x, "y": y, "mask": mask, "index_map": index_map}
-
-    return mesh
