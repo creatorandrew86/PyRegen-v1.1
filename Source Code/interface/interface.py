@@ -19,14 +19,15 @@ graph_y_items = ["Cold wall temperature (K)", "Hot wall temperature (K)", "Gas H
 pressure_drop_model_items = ["Colebrook-Petukhov", "Filonenko-Petukhov", "Colebrook"]
 cold_side_model_items = ["Sieder-Tate", "Bishop et al.", "Jackson", "Dittus-Boelter", "Gnielinski"]
 hot_side_model_items = ["Bartz", "Bartz Corrected"]
-wall_model_items = ["1D", "2D"]
+wall_model_items = ["1D"]
 
 FONT_PATH = Path(__file__).resolve().parent.parent / "assets" / "Inter-VariableFont_opsz,wght.ttf"
 
 
 
 # Getter functions for retrieving input values from the interface
-def get_engine_parameters() -> dict:
+
+def get_inputs_on_generate() -> dict:
     return {
         "oxidizer" : dpg.get_value("input_oxidizer"),
         "fuel" : dpg.get_value("input_fuel"),
@@ -38,11 +39,6 @@ def get_engine_parameters() -> dict:
         "unit_mass_flow_rate" : dpg.get_value("unit_mass_flow_rate"),
         "Rt" : dpg.get_value("input_Rt"),
         "unit_Rt" : dpg.get_value("unit_Rt"),
-    }
-
-
-def get_nozzle_parameters() -> dict:
-    return {
         "eps" : dpg.get_value("input_eps"),
         "CR" : dpg.get_value("input_CR"),
         "L_star" : dpg.get_value("input_L_star"),
@@ -53,8 +49,7 @@ def get_nozzle_parameters() -> dict:
         "nozzle_resolution" : dpg.get_value("input_nozzle_resolution"),
     }
 
-
-def get_coolant_parameters() -> dict:
+def get_inputs_on_solve() -> dict:
     return {
         "coolant" : dpg.get_value("input_coolant"),
         "coolant_mass_flow_rate" : dpg.get_value("input_coolant_mass_flow"),
@@ -63,11 +58,6 @@ def get_coolant_parameters() -> dict:
         "unit_coolant_inlet_temperature" : dpg.get_value("unit_coolant_inlet_temperature"),
         "coolant_inlet_pressure" : dpg.get_value("input_coolant_inlet_pressure"),
         "unit_coolant_inlet_pressure" : dpg.get_value("unit_coolant_inlet_pressure"),
-    }
-
-
-def get_channel_parameters() -> dict:
-    return {
         "wall_material" : dpg.get_value("input_wall_material"),
         "wall_thickness" : dpg.get_value("input_wall_thickness"),
         "unit_wall_thickness" : dpg.get_value("unit_wall_thickness"),
@@ -75,15 +65,6 @@ def get_channel_parameters() -> dict:
         "jacket_resolution" : dpg.get_value("input_jacket_resolution"),
         "channel_roughness" : dpg.get_value("input_channel_roughness"),
         "interpolation_type" : dpg.get_value("interpolation_type"),
-    }
-
-
-def get_control_points() -> list[dict]:
-    return control_points
-
-
-def get_solver_options() -> dict:
-    return {
         "pressure_drop_model" : dpg.get_value("input_pressure_drop_model"),
         "cold_side_model" : dpg.get_value("input_cold_side_model"),
         "hot_side_model" : dpg.get_value("input_hot_side_model"),
@@ -91,8 +72,10 @@ def get_solver_options() -> dict:
         "channel_roughness" : dpg.get_value("input_channel_roughness"),
         "N_injectors" : dpg.get_value("input_N_injectors"),
         "injector_velocity_ratio" : dpg.get_value("input_injector_velocity_ratio"),
-
     }
+
+def get_control_points() -> list[dict]:
+    return control_points
 
 
 # Local callbacks

@@ -1,6 +1,5 @@
 import dearpygui.dearpygui as dpg
-
-import interface.interface as interface
+import interface.interface as ui
 
 
 GRAPH_VALUE_MAP = {
@@ -26,22 +25,22 @@ graph_y_items = [k for k in GRAPH_VALUE_MAP if k != "Axial position (x) (m)"]
 def main_graph(state: dict, values: dict):
     # Check if PyRegen ran
     if state["results"]["Q_flux"] is None:
-        interface.show_errors(["PyRegen must run before attempting to print any output"])
+        ui.show_errors(["PyRegen must run before attempting to print any output"])
         return
 
     x_axis_value = values["x_value"]
     y_axis_value = values["y_value"]
 
     if x_axis_value is None or y_axis_value is None:
-        interface.show_errors(["You must select both values for the graph"])
+        ui.show_errors(["You must select both values for the graph"])
         return
 
     if x_axis_value == y_axis_value:
-        interface.show_errors(["X and Y axis must be different"])
+        ui.show_errors(["X and Y axis must be different"])
         return
 
     if y_axis_value == "Axial position (x) (m)":
-        interface.show_errors(["'Axial position (x)' can only be used as the X axis"])
+        ui.show_errors(["'Axial position (x)' can only be used as the X axis"])
         return
 
     x_group, x_key, x_conv = GRAPH_VALUE_MAP[x_axis_value]
@@ -51,7 +50,7 @@ def main_graph(state: dict, values: dict):
     y_raw = state[y_group][y_key]
 
     if x_raw is None or y_raw is None:
-        interface.show_errors(["Selected data has not been computed yet"])
+        ui.show_errors(["Selected data has not been computed yet"])
         return
 
     x_data = list(reversed([x_conv(v) for v in x_raw]))
@@ -75,7 +74,7 @@ def main_graph(state: dict, values: dict):
 def nozzle_graph(state: dict):
     # Check if the nozzle generator ran
     if state["nozzle_parameters"]["x"] is None:
-        interface.show_errors(["The nozzle generator must run before attempting to show the nozzle graph"])
+        ui.show_errors(["The nozzle generator must run before attempting to show the nozzle graph"])
         return
     
     # Nozzle line color
@@ -87,7 +86,7 @@ def nozzle_graph(state: dict):
     r_data = state["nozzle_parameters"]["R_x"]
 
     if x_data is None or r_data is None:
-        interface.show_errors(["Nozzle geometry has not been computed yet"])
+        ui.show_errors(["Nozzle geometry has not been computed yet"])
         return
 
     window_tag = "nozzle_graph_window"

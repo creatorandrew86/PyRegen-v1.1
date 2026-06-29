@@ -16,7 +16,6 @@ from .pressure_drop_models import (
 )
 
 from .wall_1d import wall_1d_fin
-from .wall_2d import wall_2d
 
 
 PRESSURE_DROP = {
@@ -40,5 +39,4 @@ HOT_SIDE = {
 
 WALL = {
     "1D": wall_1d_fin,
-    "2D": wall_2d,
 }

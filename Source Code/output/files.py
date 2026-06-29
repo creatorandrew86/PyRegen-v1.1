@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from rocketcea.cea_obj import CEA_Obj as CEA_Obj_default_units
-import interface.interface as interface
+import interface.interface as ui
 
 
 def _ask_save_path(default_filename: str) -> Path | None:
@@ -28,7 +28,7 @@ def _ask_save_path(default_filename: str) -> Path | None:
 def write_full_cea_output(state: dict):
     # Check if PyRegen ran
     if state["results"]["Q_flux"] is None:
-        interface.show_errors(["PyRegen must run before attempting to print any output"])
+        ui.show_errors(["PyRegen must run before attempting to print any output"])
         return
 
     # ── Unpack ───────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ def write_full_cea_output(state: dict):
 def write_full_pyregen_output(state: dict):
     # Check if PyRegen ran
     if state["results"]["Q_flux"] is None:
-        interface.show_errors(["PyRegen must run before attempting to print any output"])
+        ui.show_errors(["PyRegen must run before attempting to print any output"])
         return
 
     # ── Unpack engine ────────────────────────────────────────────────────

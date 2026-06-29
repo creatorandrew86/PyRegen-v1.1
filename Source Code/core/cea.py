@@ -6,44 +6,53 @@ import numpy as np
 def run_cea(state: dict) -> list[str]:
     errors = []
 
-    engine_params = state["engine_parameters"]
-    nozzle_params = state["nozzle_parameters"]
+    oxidizer = state["engine_parameters"]["oxidizer"]
+    fuel     = state["engine_parameters"]["fuel"]
+    Pc       = state["engine_parameters"]["Pc"]
+    Pc_psia  = Pc / 6894.7
+    MR       = state["engine_parameters"]["MR"]
+    Rt       = state["engine_parameters"]["Rt"]
+    mass_flow = state["engine_parameters"]["mass_flow_rate"]
+
+    CR     = state["nozzle_parameters"]["CR"]
+    eps    = state["nozzle_parameters"]["eps"]
 
     try: 
-        c_SI_units = CEA_Obj_SI_units(oxName=engine_params["oxidizer"], fuelName=engine_params["fuel"], fac_CR=nozzle_params["CR"], pressure_units="Pa",
-                    temperature_units="K", cstar_units="m/s", sonic_velocity_units="m/s", density_units="kg/m^3", specific_heat_units="J/kg-K")
+        c_SI_units = CEA_Obj_SI_units(oxName=oxidizer, fuelName=fuel, fac_CR=CR, pressure_units="Pa", temperature_units="K", cstar_units="m/s", 
+                                      sonic_velocity_units="m/s", density_units="kg/m^3", specific_heat_units="J/kg-K")
         
-        c_default_units = CEA_Obj_default_units(oxName=engine_params["oxidizer"], fuelName=engine_params["fuel"], fac_CR=nozzle_params["CR"])
+        c_default_units = CEA_Obj_default_units(oxName=oxidizer, fuelName=fuel, fac_CR=CR)
         
         # Store the CEA object in the state dict
-        engine_params["CEA_Obj_SI_units"] = c_SI_units
-        engine_params["CEA_Obj_default_units"] = c_default_units
+        state["engine_parameters"]["CEA_Obj_SI_units"]      = c_SI_units
+        state["engine_parameters"]["CEA_Obj_default_units"] = c_default_units
 
         # Update the state dict with the CEA values
-        engine_params["Tc"] = c_SI_units.get_Tcomb(Pc=engine_params["Pc"], MR=engine_params["MR"])
-        engine_params["C_star"] = c_SI_units.get_Cstar(Pc=engine_params["Pc"], MR=engine_params["MR"])
-        engine_params["Isp"]  = c_default_units.get_SonicVelocities(Pc=engine_params["Pc"]/6894.7, MR=engine_params["MR"], eps=nozzle_params["eps"])[2] / 3.28 * \
-                                c_default_units.get_MachNumber(Pc=engine_params["Pc"]/6894.7, MR=engine_params["MR"], eps=nozzle_params["eps"]) / 9.81
-        engine_params["Ivac"] = c_default_units.get_IvacCstrTc(Pc=engine_params["Pc"]/6894.7, MR=engine_params["MR"], eps=nozzle_params["eps"])[0]
+        state["engine_parameters"]["Tc"]                     = c_SI_units.get_Tcomb(Pc=Pc, MR=MR)
+        state["engine_parameters"]["C_star"]                 = c_SI_units.get_Cstar(Pc=Pc, MR=MR)
+        state["engine_parameters"]["Isp"]                    = c_default_units.get_SonicVelocities(Pc=Pc_psia, MR=MR, eps=eps)[2] / 3.28 * \
+                                                               c_default_units.get_MachNumber(Pc=Pc_psia, MR=MR, eps=eps) / 9.81
+        state["engine_parameters"]["Ivac"]                   = c_default_units.get_IvacCstrTc(Pc=Pc_psia, MR=MR, eps=eps)[0]
+        state["engine_parameters"]["species_mass_fractions"] = c_SI_units.get_SpeciesMassFractions(Pc=Pc, MR=MR, eps=eps, min_fraction=0.00001)
 
-        chamber_transport = c_SI_units.get_Chamber_Transport(Pc=engine_params["Pc"], MR=engine_params["MR"], eps=nozzle_params["eps"], frozen=1)
-        engine_params["chamber_Cp"] = chamber_transport[0]
-        engine_params["chamber_viscosity"] = chamber_transport[1] * 1e-4 
-        engine_params["chamber_Pr"] = chamber_transport[3]   
 
-        engine_params["species_mass_fractions"] = c_SI_units.get_SpeciesMassFractions(Pc=engine_params["Pc"], MR=engine_params["MR"], eps=nozzle_params["eps"], min_fraction=0.00001)
+        chamber_transport = c_SI_units.get_Chamber_Transport(Pc=Pc, MR=MR, eps=eps, frozen=1)
+        state["engine_parameters"]["chamber_Cp"] = chamber_transport[0]
+        state["engine_parameters"]["chamber_viscosity"] = chamber_transport[1] * 1e-4 
+        state["engine_parameters"]["chamber_Pr"] = chamber_transport[3]   
+
 
         # Calculate throat radius / mass flow rate
-        throat_c = c_SI_units.get_SonicVelocities(Pc=engine_params["Pc"], MR=engine_params["MR"], eps=nozzle_params["eps"])[1]
-        throat_rho = c_SI_units.get_Densities(Pc=engine_params["Pc"], MR=engine_params["MR"], eps=nozzle_params["eps"])[1]
+        throat_c = c_SI_units.get_SonicVelocities(Pc=Pc, MR=MR, eps=eps)[1]
+        throat_rho = c_SI_units.get_Densities(Pc=Pc, MR=MR, eps=eps)[1]
 
-        if engine_params["throat_sizing_method"] == "given_radius":
-            nozzle_params["At"] = np.pi * pow(engine_params["Rt"], 2)
-            engine_params["mass_flow_rate"] = throat_c * throat_rho * nozzle_params["At"]
+        if state["engine_parameters"]["throat_sizing_method"] == "given_radius":
+            state["nozzle_parameters"]["At"] = np.pi * pow(Rt, 2)
+            state["engine_parameters"]["mass_flow_rate"] = throat_c * throat_rho * state["nozzle_parameters"]["At"]
 
-        elif engine_params["throat_sizing_method"] == "mass_flow":
-            nozzle_params["At"] = engine_params["mass_flow_rate"] / (throat_c * throat_rho)
-            engine_params["Rt"] = np.sqrt(nozzle_params["At"] / np.pi)
+        elif state["engine_parameters"]["throat_sizing_method"] == "mass_flow":
+            state["nozzle_parameters"]["At"] = mass_flow / (throat_c * throat_rho)
+            state["engine_parameters"]["Rt"] = np.sqrt(state["nozzle_parameters"]["At"] / np.pi)
 
     except Exception as e:
         errors.append(f"CEA Error: {e}")
