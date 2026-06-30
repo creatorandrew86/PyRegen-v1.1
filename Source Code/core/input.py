@@ -1,4 +1,4 @@
-import interface.interface as ui
+from ui.callbacks import get_inputs_on_generate, get_inputs_on_solve
 
 def pressure_conversion(value: float, unit: str) -> float:
     match unit:
@@ -34,7 +34,7 @@ def mass_flow_conversion(value, unit):
 # Input processor on generate
 def inputs_on_generate(state: dict) -> list[str]:
     errors = []
-    input = ui.get_inputs_on_generate()
+    input = get_inputs_on_generate()
 
     engine = state["engine_parameters"]
     nozzle = state["nozzle_parameters"]
@@ -130,8 +130,9 @@ def inputs_on_generate(state: dict) -> list[str]:
 # Input processor on solve
 def inputs_on_solve(state: dict) -> list[str]:
     errors = []
-    input = ui.get_inputs_on_solve()
-    control_points = ui.get_control_points()
+    input = get_inputs_on_solve()
+    
+    control_points : list[dict] = input["control_points"]
 
     engine  = state["engine_parameters"]
     coolant = state["coolant_parameters"]

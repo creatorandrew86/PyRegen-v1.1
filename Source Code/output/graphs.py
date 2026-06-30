@@ -1,6 +1,4 @@
 import dearpygui.dearpygui as dpg
-import interface.interface as ui
-
 
 GRAPH_VALUE_MAP = {
     "Axial position (x) (cm)":                      ("nozzle_parameters",  "station_x",                   lambda v: v * 1e2),
@@ -18,92 +16,88 @@ GRAPH_VALUE_MAP = {
     "Landwidth (mm)":                               ("channel_parameters", "station_landwidth",           lambda v: v * 1e3),
     }
 
-graph_x_items = list(GRAPH_VALUE_MAP.keys())
-graph_y_items = [k for k in GRAPH_VALUE_MAP if k != "Axial position (x) (m)"]
 
+def main_graph(state: dict, values: dict) -> list[str]:
+    errors = []
 
-def main_graph(state: dict, values: dict):
     # Check if PyRegen ran
     if state["results"]["Q_flux"] is None:
-        ui.show_errors(["PyRegen must run before attempting to print any output"])
-        return
+        errors.append("PyRegen must run before attempting to print any output")
+        return errors
 
     x_axis_value = values["x_value"]
     y_axis_value = values["y_value"]
 
     if x_axis_value is None or y_axis_value is None:
-        ui.show_errors(["You must select both values for the graph"])
-        return
+        errors.append("You must select both values for the graph")
+        return errors
 
     if x_axis_value == y_axis_value:
-        ui.show_errors(["X and Y axis must be different"])
-        return
+        errors.append("X and Y axis must be different")
+        return errors
 
-    if y_axis_value == "Axial position (x) (m)":
-        ui.show_errors(["'Axial position (x)' can only be used as the X axis"])
-        return
+    x_subdict, x_key, x_unit_conversion = GRAPH_VALUE_MAP[x_axis_value]
+    y_subdict, y_key, y_unit_conversion = GRAPH_VALUE_MAP[y_axis_value]
 
-    x_group, x_key, x_conv = GRAPH_VALUE_MAP[x_axis_value]
-    y_group, y_key, y_conv = GRAPH_VALUE_MAP[y_axis_value]
+    x_value = state[x_subdict][x_key]
+    y_value = state[y_subdict][y_key]
 
-    x_raw = state[x_group][x_key]
-    y_raw = state[y_group][y_key]
+    if x_value is None or y_value is None:
+        errors.append("Selected data has not been computed yet")
+        return errors
 
-    if x_raw is None or y_raw is None:
-        ui.show_errors(["Selected data has not been computed yet"])
-        return
-
-    x_data = list(reversed([x_conv(v) for v in x_raw]))
-    y_data = list(reversed([y_conv(v) for v in y_raw]))
+    x_value = list(reversed([x_unit_conversion(value) for value in x_value]))
+    y_value = list(reversed([y_unit_conversion(value) for value in y_value]))
 
     window_tag = "graph_window"
     if dpg.does_item_exist(window_tag):
         dpg.delete_item(window_tag)
 
+    # Graph Window
     with dpg.window(label="Graph Output", tag=window_tag, width=700, height=500):
         with dpg.plot(label=f"{y_axis_value} vs {x_axis_value}", height=-1, width=-1):
             dpg.add_plot_legend()
             dpg.add_plot_axis(dpg.mvXAxis, label=x_axis_value, tag="x_axis")
             dpg.add_plot_axis(dpg.mvYAxis, label=y_axis_value, tag="y_axis")
-            dpg.add_line_series(x_data, y_data, label=f"{y_axis_value} vs {x_axis_value}", parent="y_axis")
+            dpg.add_line_series(x_value, y_value, label=f"{y_axis_value} vs {x_axis_value}", parent="y_axis")
             dpg.fit_axis_data("x_axis")
             dpg.fit_axis_data("y_axis")
 
+    return errors
 
 
-def nozzle_graph(state: dict):
+
+def nozzle_graph(state: dict) -> list[str]:
+    errors = []
+
     # Check if the nozzle generator ran
     if state["nozzle_parameters"]["x"] is None:
-        ui.show_errors(["The nozzle generator must run before attempting to show the nozzle graph"])
-        return
+        errors.append("The nozzle generator must run before attempting to print any output")
+        return errors
     
     # Nozzle line color
     with dpg.theme() as nozzle_line_theme:
         with dpg.theme_component(dpg.mvLineSeries):
             dpg.add_theme_color(dpg.mvPlotCol_Line, (100, 180, 255, 255), category=dpg.mvThemeCat_Plots)
 
-    x_data = state["nozzle_parameters"]["x"]
-    r_data = state["nozzle_parameters"]["R_x"]
-
-    if x_data is None or r_data is None:
-        ui.show_errors(["Nozzle geometry has not been computed yet"])
-        return
+    x_value = state["nozzle_parameters"]["x"]
+    y_value = state["nozzle_parameters"]["R_x"]
 
     window_tag = "nozzle_graph_window"
     if dpg.does_item_exist(window_tag):
         dpg.delete_item(window_tag)
 
-    x     = [v * 100 for v in x_data]
-    upper = [v * 100 for v in r_data]
-    lower = [-v for v in upper]
+    x_value       = [value * 100 for value in x_value]
+    y_value_upper = [value * 100 for value in y_value]
+    y_value_lower = [-value for value in y_value_upper]
 
     with dpg.window(label="Nozzle Profile", tag=window_tag, width=700, height=400, modal=False):
         with dpg.plot(label="Nozzle Contour", height=-1, width=-1):
             dpg.add_plot_axis(dpg.mvXAxis, label="Axial position (cm)", tag="nozzle_x_axis")
             dpg.add_plot_axis(dpg.mvYAxis, label="Radius (cm)",          tag="nozzle_y_axis")
 
-            dpg.add_line_series(x, upper, label="Nozzle wall", parent="nozzle_y_axis", tag="nozzle_upper")
-            dpg.add_line_series(x, lower, label="",            parent="nozzle_y_axis", tag="nozzle_lower")
+            dpg.add_line_series(x_value, y_value_upper, label="Nozzle wall", parent="nozzle_y_axis", tag="nozzle_upper")
+            dpg.add_line_series(x_value, y_value_lower, label="",            parent="nozzle_y_axis", tag="nozzle_lower")
 
             dpg.bind_item_theme("nozzle_upper", nozzle_line_theme)
             dpg.bind_item_theme("nozzle_lower", nozzle_line_theme)

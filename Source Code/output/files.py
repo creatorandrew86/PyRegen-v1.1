@@ -4,7 +4,6 @@ from datetime import datetime
 from pathlib import Path
 
 from rocketcea.cea_obj import CEA_Obj as CEA_Obj_default_units
-import interface.interface as ui
 
 
 def _ask_save_path(default_filename: str) -> Path | None:
@@ -25,11 +24,13 @@ def _ask_save_path(default_filename: str) -> Path | None:
     return Path(path) if path else None
 
 
-def write_full_cea_output(state: dict):
+def write_full_cea_output(state: dict) -> list[str]:
+    errors = []
+
     # Check if PyRegen ran
     if state["results"]["Q_flux"] is None:
-        ui.show_errors(["PyRegen must run before attempting to print any output"])
-        return
+        errors.append("PyRegen must run before attempting to print any output")
+        return errors
 
     # ── Unpack ───────────────────────────────────────────────────────────
     Pc              = state["engine_parameters"]["Pc"]
@@ -50,12 +51,16 @@ def write_full_cea_output(state: dict):
 
     print(f"CEA output written to {path}")
 
+    return errors
 
-def write_full_pyregen_output(state: dict):
+
+def write_full_pyregen_output(state: dict) -> list[str]:
+    errors = []
+
     # Check if PyRegen ran
     if state["results"]["Q_flux"] is None:
-        ui.show_errors(["PyRegen must run before attempting to print any output"])
-        return
+        errors.append("PyRegen must run before attempting to print any output")
+        return errors
 
     # ── Unpack engine ────────────────────────────────────────────────────
     oxidizer        = state["engine_parameters"]["oxidizer"]
@@ -223,3 +228,5 @@ def write_full_pyregen_output(state: dict):
         f.write("─" * (total_width - 21) + "\n")
 
     print(f"Full PyRegen output written to {path}")
+
+    return errors
